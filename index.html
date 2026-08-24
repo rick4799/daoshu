@@ -1082,9 +1082,14 @@ async function syncFromCloud(){
     setSyncStatus("synced","已是最新");
     return;
   }
+  var cloudTime=cloudData._updatedAt?new Date(cloudData._updatedAt):new Date(cloudRow.updated_at);
+  var localTime=localData&&localData._updatedAt?new Date(localData._updatedAt):new Date(0);
+  if(cloudTime<=localTime){
+    setSyncStatus("synced","本地更新");
+    return;
+  }
   suppressPull=true;
-  var merged=mergeTreeData(cloudData,localData);
-  state.nodes=(merged.nodes||[]).map(function(n){
+  state.nodes=(cloudData.nodes||[]).map(function(n){
     var node=Object.assign({},n,{vx:0,vy:0,fx:0,fy:0});
     if(!node.associations)node.associations=[];
     if(node.collapsed===undefined)node.collapsed=false;
@@ -1100,9 +1105,10 @@ async function syncFromCloud(){
   });
   state.assocVersion++;
   simAlpha=1;
-  localStorage.setItem(STORAGE_KEY,JSON.stringify({nodes:state.nodes}));
+  localStorage.setItem(STORAGE_KEY,JSON.stringify({nodes:state.nodes,_updatedAt:cloudData._updatedAt||cloudRow.updated_at}));
   updateDetailPanel();
   setSyncStatus("synced","已同步");
+  lastSyncTime=Date.now();
   setTimeout(function(){suppressPull=false;},2000);
 }
 function scheduleSync(){
@@ -1127,9 +1133,11 @@ function subscribeRealtime(){
         var localRaw=localStorage.getItem(STORAGE_KEY);
         var localData=null;
         try{localData=localRaw?JSON.parse(localRaw):null;}catch(e){}
-        var merged=mergeTreeData(payload.new.tree_data,localData);
+        var cloudTime=payload.new.tree_data._updatedAt?new Date(payload.new.tree_data._updatedAt):new Date(payload.new.updated_at);
+        var localTime=localData&&localData._updatedAt?new Date(localData._updatedAt):new Date(0);
+        if(cloudTime<=localTime)return;
         suppressPull=true;
-        state.nodes=(merged.nodes||[]).map(function(n){
+        state.nodes=(payload.new.tree_data.nodes||[]).map(function(n){
           var node=Object.assign({},n,{vx:0,vy:0,fx:0,fy:0});
           if(!node.associations)node.associations=[];
           if(node.collapsed===undefined)node.collapsed=false;
@@ -1145,7 +1153,7 @@ function subscribeRealtime(){
         });
         state.assocVersion++;
         simAlpha=1;
-        localStorage.setItem(STORAGE_KEY,JSON.stringify({nodes:state.nodes}));
+        localStorage.setItem(STORAGE_KEY,JSON.stringify({nodes:state.nodes,_updatedAt:payload.new.tree_data._updatedAt||payload.new.updated_at}));
         updateDetailPanel();
         setSyncStatus("synced","实时同步");
         setTimeout(function(){suppressPull=false;},2000);
@@ -1571,6 +1579,7 @@ function saveState(){
     }else{node.content=n.content||"";}
     return node;
   })};
+  data._updatedAt=new Date().toISOString();
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch(e){console.error("Save error:",e);}
   scheduleSync();
 }
@@ -3447,7 +3456,10 @@ svg.addEventListener("contextmenu",function(e){
   e.preventDefault();
   var id=g.getAttribute("data-id");
   var node=getNode(id);if(!node)return;
-  if(node.type==="trunk"){alert("主干节点不可删除");return;}
+  if(node.type==="trunk"){
+    var trunkCount=state.nodes.filter(function(n){return n.type==="trunk";}).length;
+    if(trunkCount<=1){alert("至少保留一个主干节点");return;}
+  }
   var cc=getChildren(id).length;
   var msg="确定删除「"+node.title+"」？";
   if(cc>0)msg+="\n其下 "+cc+" 个子节点也将一并删除。";
@@ -3495,7 +3507,10 @@ detailAddLeafBtn.addEventListener("click",function(){
 detailDeleteBtn.addEventListener("click",function(){
   if(!state.selectedId)return;
   var n=getNode(state.selectedId);if(!n)return;
-  if(n.type==="trunk"){alert("主干节点不可删除");return;}
+  if(n.type==="trunk"){
+    var trunkCount=state.nodes.filter(function(x){return x.type==="trunk";}).length;
+    if(trunkCount<=1){alert("至少保留一个主干节点");return;}
+  }
   var cc=getChildren(n.id).length;
   var msg="确定删除「"+n.title+"」？";
   if(cc>0)msg+="\n其下 "+cc+" 个子节点也将一并删除。";
