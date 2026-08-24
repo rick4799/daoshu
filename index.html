@@ -1,0 +1,3637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0e17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="道树">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48Y2lyY2xlIGN4PSI5NiIgY3k9Ijk2IiByPSI5NiIgZmlsbD0iIzBhMGUxNyIvPjx0ZXh0IHg9Ijk2IiB5PSIxMzAiIGZvbnQtc2l6ZT0iMTA1IiBmaWxsPSIjZThkNWEwIiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7pn4g8L3RleHQ+PC9zdmc+">
+<title>道树</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  background:#0a0e17;color:#b0c4de;overflow:hidden;height:100vh;
+  user-select:none;-webkit-user-drag:none;
+  -webkit-touch-callout:none;touch-action:none;
+}
+#app{display:flex;height:100vh;}
+
+#canvas-area{
+  flex:1;position:relative;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 60%,#101828 0%,#0a0e17 70%,#060810 100%);
+}
+#canvas-area::before{
+  content:'';position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(70,100,150,0.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(70,100,150,0.035) 1px,transparent 1px);
+  background-size:50px 50px;pointer-events:none;z-index:0;
+}
+#canvas-area::after{
+  content:'';position:absolute;inset:0;
+  background-image:
+    radial-gradient(1px 1px at 15% 25%,rgba(180,200,255,0.2),transparent 60%),
+    radial-gradient(1px 1px at 45% 75%,rgba(180,200,255,0.15),transparent 60%),
+    radial-gradient(1px 1px at 65% 15%,rgba(200,210,255,0.18),transparent 60%),
+    radial-gradient(1px 1px at 85% 55%,rgba(180,200,255,0.13),transparent 60%),
+    radial-gradient(1px 1px at 25% 85%,rgba(160,190,255,0.12),transparent 60%);
+  pointer-events:none;z-index:0;
+}
+#tree-svg{width:100%;height:100%;display:block;position:relative;z-index:1;cursor:grab;}
+#tree-svg.panning{cursor:grabbing;}
+#tree-svg.node-drag{cursor:grabbing;}
+.node-group{cursor:pointer;}
+.branch-drop-target{stroke:#80c8ff!important;stroke-width:2.5!important;stroke-dasharray:4 3!important;animation:dropPulse 0.8s ease-in-out infinite;}
+@keyframes dropPulse{0%,100%{opacity:0.7;}50%{opacity:1;}}
+
+.toolbar{
+  position:absolute;top:14px;left:14px;
+  display:flex;flex-wrap:wrap;gap:8px;z-index:10;max-width:calc(100% - 28px);
+}
+.toolbar button{
+  background:rgba(12,20,38,0.85);
+  border:1px solid rgba(70,130,180,0.3);
+  color:#7eb8d8;padding:8px 18px;border-radius:6px;
+  cursor:pointer;font-size:13px;font-family:inherit;
+  letter-spacing:0.5px;backdrop-filter:blur(8px);
+  transition:all 0.15s;white-space:nowrap;
+}
+.toolbar button:hover{
+  background:rgba(20,36,60,0.9);
+  border-color:rgba(100,180,220,0.5);
+  color:#a0d4f0;box-shadow:0 0 12px rgba(70,130,180,0.2);
+}
+.toolbar button:disabled{opacity:0.3;cursor:not-allowed;}
+.toolbar button.active{
+  background:rgba(60,40,100,0.85);
+  border-color:rgba(160,120,200,0.5);
+  color:#c8a0e0;box-shadow:0 0 14px rgba(140,100,180,0.25);
+}
+.toolbar button.filter-active{
+  background:rgba(20,50,70,0.85);
+  border-color:rgba(100,180,220,0.5);
+  color:#a0d4f0;box-shadow:0 0 14px rgba(70,130,180,0.3);
+}
+
+#assoc-hint{
+  position:absolute;top:60px;left:50%;transform:translateX(-50%);
+  background:rgba(40,20,60,0.9);border:1px solid rgba(160,120,200,0.3);
+  color:#c8a0e0;padding:8px 20px;border-radius:6px;
+  font-size:13px;z-index:10;display:none;
+  backdrop-filter:blur(8px);letter-spacing:0.5px;
+}
+
+.hint{
+  position:absolute;bottom:14px;left:16px;
+  color:rgba(100,130,170,0.4);font-size:11px;
+  z-index:10;line-height:1.7;letter-spacing:0.3px;
+}
+
+.zoom-indicator{
+  position:absolute;bottom:14px;right:14px;
+  color:rgba(100,130,170,0.4);font-size:11px;
+  z-index:10;font-variant-numeric:tabular-nums;
+}
+
+#tooltip{
+  position:fixed;display:none;
+  background:rgba(8,14,26,0.92);
+  border:1px solid rgba(70,130,180,0.35);
+  border-radius:6px;padding:8px 14px;
+  pointer-events:none;z-index:100;max-width:280px;
+  backdrop-filter:blur(6px);box-shadow:0 0 20px rgba(0,0,0,0.5);
+}
+#tooltip .tt-title{font-size:14px;font-weight:600;margin-bottom:3px;}
+#tooltip .tt-type{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;}
+#tooltip .tt-type.trunk{color:#e8d5a0;}
+#tooltip .tt-type.branch{color:#4dd0e1;}
+#tooltip .tt-type.leaf{color:#a5d6a7;}
+#tooltip .tt-assoc{font-size:12px;color:#d0d8e8;font-style:italic;}
+#tooltip .tt-content-type{font-size:11px;color:rgba(140,170,200,0.7);margin-top:2px;}
+
+/* Detail Panel - Wide */
+#detail-panel{
+  width:60%;max-width:720px;min-width:400px;
+  background:rgba(10,14,23,0.97);
+  border-left:1px solid rgba(70,130,180,0.15);
+  padding:0;overflow:hidden;
+  display:flex;flex-direction:column;
+  backdrop-filter:blur(12px);
+}
+.detail-header{
+  display:flex;align-items:center;gap:12px;
+  padding:18px 24px;border-bottom:1px solid rgba(70,130,180,0.12);
+  flex-shrink:0;
+}
+.detail-close-btn{
+  background:none;border:none;color:rgba(140,170,200,0.5);
+  font-size:20px;cursor:pointer;padding:4px 8px;border-radius:4px;
+  transition:all 0.15s;flex-shrink:0;
+}
+.detail-close-btn:hover{color:#d0e0f0;background:rgba(70,130,180,0.1);}
+.detail-title-wrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.detail-type-tag{font-size:10px;color:rgba(100,140,180,0.5);text-transform:uppercase;letter-spacing:2.5px;font-weight:600;}
+.detail-type-tag.trunk{color:rgba(232,213,160,0.6);}
+.detail-type-tag.branch{color:rgba(77,208,225,0.6);}
+.detail-type-tag.leaf{color:rgba(165,214,167,0.6);}
+.detail-title-input{
+  background:rgba(12,20,38,0.7);
+  border:1px solid rgba(70,130,180,0.2);
+  color:#d0e0f0;padding:6px 0;border-radius:0;
+  font-size:18px;font-weight:600;outline:none;width:100%;
+  font-family:inherit;transition:border-color 0.15s;
+  border:none;border-bottom:1px solid transparent;
+}
+.detail-title-input:focus{border-bottom-color:rgba(77,208,225,0.4);}
+
+.detail-content-scroll{
+  flex:1;overflow-y:auto;padding:20px 24px;
+}
+.detail-content-scroll::-webkit-scrollbar{width:6px;}
+.detail-content-scroll::-webkit-scrollbar-track{background:transparent;}
+.detail-content-scroll::-webkit-scrollbar-thumb{background:rgba(70,130,180,0.2);border-radius:3px;}
+
+.content-type-row{
+  display:flex;align-items:center;gap:10px;margin-bottom:16px;
+  padding-bottom:14px;border-bottom:1px solid rgba(70,130,180,0.1);
+}
+.content-type-label{font-size:11px;color:rgba(100,140,180,0.5);letter-spacing:1px;font-weight:500;flex-shrink:0;}
+.content-type-select{
+  background:rgba(12,20,38,0.7);
+  border:1px solid rgba(70,130,180,0.2);
+  color:#b0c4de;padding:5px 10px;border-radius:5px;
+  font-size:12px;outline:none;font-family:inherit;cursor:pointer;
+}
+.content-type-select:focus{border-color:rgba(77,208,225,0.4);}
+.content-type-select option{background:#0a0e17;color:#b0c4de;}
+
+.detail-footer{
+  padding:14px 24px;border-top:1px solid rgba(70,130,180,0.12);
+  display:flex;gap:10px;flex-shrink:0;
+}
+.detail-footer .btn{
+  flex:1;padding:8px 14px;border-radius:6px;
+  font-size:13px;font-family:inherit;cursor:pointer;
+  border:1px solid;transition:all 0.15s;
+}
+.btn-add{background:rgba(20,40,70,0.6);border-color:rgba(60,120,170,0.25);color:#5eaad8;}
+.btn-add:hover{background:rgba(30,55,90,0.8);box-shadow:0 0 10px rgba(60,120,170,0.15);}
+.btn-delete{background:rgba(40,16,16,0.5);border-color:rgba(120,50,50,0.25);color:#d0706a;}
+.btn-delete:hover{background:rgba(60,24,24,0.6);box-shadow:0 0 10px rgba(120,50,50,0.15);}
+
+#detail-empty{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  height:100%;text-align:center;
+  color:rgba(100,130,170,0.35);gap:10px;line-height:1.6;
+}
+#detail-empty .logo{font-size:32px;margin-bottom:6px;color:rgba(120,160,200,0.3);letter-spacing:4px;}
+#detail-content{display:none;flex-direction:column;height:100%;}
+
+/* Rich Text Fields */
+.rt-field{margin-bottom:18px;}
+.rt-field-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:6px;
+}
+.rt-field-label{font-size:11px;color:rgba(100,140,180,0.6);letter-spacing:1px;font-weight:500;}
+.rt-toolbar{display:flex;gap:4px;}
+.rt-toolbar button{
+  background:rgba(12,20,38,0.6);border:1px solid rgba(70,130,180,0.15);
+  color:rgba(140,170,200,0.6);padding:3px 8px;border-radius:4px;
+  cursor:pointer;font-size:11px;font-family:inherit;transition:all 0.12s;
+}
+.rt-toolbar button:hover{background:rgba(20,36,60,0.8);color:#a0d4f0;border-color:rgba(70,130,180,0.3);}
+.rt-textarea{
+  width:100%;min-height:80px;padding:10px 12px;
+  background:rgba(12,20,38,0.6);
+  border:1px solid rgba(70,130,180,0.15);
+  color:#b0c4de;border-radius:5px;
+  font-size:13px;font-family:inherit;line-height:1.6;
+  outline:none;resize:vertical;transition:border-color 0.15s;
+}
+.rt-textarea:focus{border-color:rgba(77,208,225,0.4);box-shadow:0 0 8px rgba(77,208,225,0.08);}
+.rt-textarea::placeholder{color:rgba(100,130,170,0.3);}
+.rt-preview{
+  padding:12px 14px;background:rgba(8,14,26,0.5);
+  border:1px solid rgba(70,130,180,0.1);
+  border-radius:5px;font-size:13px;line-height:1.7;color:#c0d0e0;
+  min-height:80px;
+}
+.rt-preview h1,.rt-preview h2,.rt-preview h3{color:#d0e0f0;margin:10px 0 6px;}
+.rt-preview p{margin-bottom:8px;}
+.rt-preview strong{color:#e0ecff;}
+.rt-preview em{color:#c8d8e8;font-style:italic;}
+.rt-preview ul,.rt-preview ol{margin:6px 0 6px 24px;}
+.rt-preview li{margin-bottom:3px;}
+.rt-preview blockquote{
+  border-left:2px solid rgba(77,208,225,0.4);
+  padding:4px 12px;margin:6px 0;color:#a0b8d0;font-style:italic;
+}
+.rt-preview code{background:rgba(70,130,180,0.15);padding:1px 5px;border-radius:3px;font-size:12px;}
+.rt-preview img{max-width:100%;border-radius:4px;cursor:zoom-in;}
+.rt-status-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.rt-status-label{font-size:11px;color:rgba(100,140,180,0.6);letter-spacing:1px;font-weight:500;flex-shrink:0;}
+.rt-status-select{
+  background:rgba(12,20,38,0.7);
+  border:1px solid rgba(70,130,180,0.2);
+  color:#b0c4de;padding:5px 12px;border-radius:5px;
+  font-size:13px;outline:none;font-family:inherit;cursor:pointer;
+}
+.rt-status-select:focus{border-color:rgba(77,208,225,0.4);}
+
+/* Preview toggle */
+.preview-toggle{
+  display:flex;gap:6px;margin-bottom:14px;
+}
+.preview-toggle button{
+  padding:5px 12px;border-radius:4px;
+  background:rgba(12,20,38,0.6);border:1px solid rgba(70,130,180,0.15);
+  color:rgba(140,170,200,0.6);font-size:12px;
+  cursor:pointer;font-family:inherit;transition:all 0.12s;
+}
+.preview-toggle button.active{
+  background:rgba(30,55,90,0.7);border-color:rgba(77,208,225,0.4);
+  color:#a0d4f0;
+}
+
+/* Source field */
+.source-section{margin-top:14px;padding-top:14px;border-top:1px solid rgba(70,130,180,0.1);}
+.source-images{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));
+  gap:8px;margin:8px 0;
+}
+.source-img-item{
+  position:relative;width:100%;padding-bottom:100%;
+  border-radius:4px;overflow:hidden;
+  border:1px solid rgba(70,130,180,0.15);
+}
+.source-img-item img{
+  position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;
+}
+.source-img-item .remove-src{
+  position:absolute;top:2px;right:2px;width:18px;height:18px;
+  background:rgba(0,0,0,0.6);border:none;color:#d0706a;
+  border-radius:3px;cursor:pointer;font-size:12px;line-height:1;
+  display:none;
+}
+.source-img-item:hover .remove-src{display:block;}
+
+/* Association section */
+.assoc-section{margin-top:16px;padding-top:14px;border-top:1px solid rgba(70,130,180,0.1);}
+.assoc-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.assoc-item{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(12,20,38,0.5);
+  border:1px solid rgba(70,130,180,0.1);
+  border-radius:5px;padding:7px 10px;
+  cursor:pointer;transition:all 0.15s;
+}
+.assoc-item:hover{
+  background:rgba(20,36,60,0.7);
+  border-color:rgba(100,180,220,0.3);
+  box-shadow:0 0 6px rgba(70,130,180,0.1);
+}
+.assoc-arrow{font-size:14px;color:rgba(160,140,200,0.6);flex-shrink:0;}
+.assoc-title{font-size:12px;color:#b0c4de;font-weight:500;flex-shrink:0;}
+.assoc-label{font-size:11px;color:rgba(160,180,210,0.5);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Mindmap editor */
+.mindmap-editor{
+  width:100%;height:360px;position:relative;
+  background:rgba(8,14,26,0.4);
+  border:1px solid rgba(70,130,180,0.12);
+  border-radius:6px;overflow:hidden;
+}
+.mindmap-editor svg{width:100%;height:100%;display:block;}
+.mm-node{cursor:pointer;}
+.mm-node text{pointer-events:none;font-family:inherit;}
+
+/* Table editor */
+.table-editor{
+  overflow:auto;border:1px solid rgba(70,130,180,0.12);border-radius:6px;
+  max-height:360px;
+}
+.ds-table{
+  width:100%;border-collapse:collapse;font-size:13px;
+}
+.ds-table th{
+  background:rgba(20,45,75,0.6);
+  color:#80d0e8;padding:8px 12px;text-align:left;
+  font-weight:500;font-size:12px;letter-spacing:0.5px;
+  border-bottom:1px solid rgba(77,208,225,0.2);
+  position:sticky;top:0;z-index:2;
+  user-select:none;
+}
+.ds-table th:hover{background:rgba(30,65,100,0.7);}
+.ds-table td{
+  padding:7px 12px;border-bottom:1px solid rgba(70,130,180,0.08);
+  color:#b0c4de;cursor:text;
+}
+.ds-table tr:hover td{background:rgba(20,36,60,0.3);}
+.ds-table td.editing{background:rgba(20,40,70,0.6);}
+.ds-table td input{
+  width:100%;background:transparent;border:none;outline:none;
+  color:#d0e0f0;font-size:13px;font-family:inherit;
+}
+.row-header{
+  width:40px;text-align:center!important;
+  color:rgba(100,140,180,0.4)!important;font-size:11px!important;
+  user-select:none;cursor:default!important;
+}
+
+/* Gallery */
+.gallery-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:8px;
+}
+.gallery-item{
+  position:relative;width:100%;padding-bottom:100%;
+  border-radius:6px;overflow:hidden;
+  border:1px solid rgba(70,130,180,0.15);
+  background:rgba(12,20,38,0.5);
+  cursor:zoom-in;
+}
+.gallery-item img{
+  position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;
+}
+.gallery-add-btn{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  color:rgba(100,140,180,0.4);font-size:28px;
+  cursor:pointer;transition:all 0.15s;
+}
+.gallery-add-btn:hover{color:#a0d4f0;background:rgba(20,36,60,0.4);}
+
+/* Image lightbox */
+#image-lightbox{
+  position:fixed;inset:0;display:none;z-index:500;
+  background:rgba(0,0,0,0.85);align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+}
+#image-lightbox img{max-width:90%;max-height:90%;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+#image-lightbox .close-lb{
+  position:absolute;top:20px;right:24px;
+  font-size:30px;color:rgba(200,220,255,0.5);cursor:pointer;
+  background:none;border:none;
+}
+#image-lightbox .close-lb:hover{color:#fff;}
+
+/* Context menu */
+.ctx-menu{
+  position:fixed;display:none;z-index:400;
+  background:rgba(8,14,26,0.95);
+  border:1px solid rgba(70,130,180,0.3);
+  border-radius:6px;overflow:hidden;
+  backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,0.5);
+  min-width:130px;
+}
+.ctx-menu button{
+  display:block;width:100%;background:none;border:none;
+  color:#b0c4de;padding:9px 16px;font-size:12px;
+  font-family:inherit;cursor:pointer;text-align:left;
+  transition:background 0.1s;
+}
+.ctx-menu button:hover{background:rgba(20,36,60,0.8);color:#a0d4f0;}
+.ctx-menu button.danger:hover{color:#d0706a;background:rgba(40,16,16,0.6);}
+.ctx-menu hr{border:none;border-top:1px solid rgba(70,130,180,0.15);margin:0;}
+
+/* Association line menu */
+#line-menu{
+  position:fixed;display:none;z-index:200;
+  background:rgba(8,14,26,0.95);
+  border:1px solid rgba(70,130,180,0.3);
+  border-radius:6px;overflow:hidden;
+  backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,0.5);
+  min-width:120px;
+}
+#line-menu button{
+  display:block;width:100%;background:none;border:none;
+  color:#b0c4de;padding:10px 18px;font-size:13px;
+  font-family:inherit;cursor:pointer;text-align:left;
+  transition:background 0.1s;
+}
+#line-menu button:hover{background:rgba(20,36,60,0.8);}
+#line-menu button:first-child:hover{color:#a0d4f0;}
+#line-menu button:last-child:hover{color:#d0706a;}
+#line-menu hr{border:none;border-top:1px solid rgba(70,130,180,0.15);margin:0;}
+
+/* Association dialog */
+#assoc-dialog{
+  position:fixed;inset:0;display:none;z-index:300;
+  background:rgba(0,0,0,0.5);align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.modal-content{
+  background:rgba(14,20,35,0.98);
+  border:1px solid rgba(70,130,180,0.3);
+  border-radius:10px;padding:24px;width:90%;max-width:380px;
+  display:flex;flex-direction:column;gap:14px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.6);
+}
+.modal-text{font-size:14px;color:#d0e0f0;line-height:1.6;}
+.modal-input{
+  background:rgba(12,20,38,0.7);
+  border:1px solid rgba(70,130,180,0.2);
+  color:#d0e0f0;padding:10px 14px;border-radius:6px;
+  font-size:14px;outline:none;width:100%;
+  font-family:inherit;transition:border-color 0.15s;
+}
+.modal-input:focus{border-color:rgba(77,208,225,0.5);box-shadow:0 0 10px rgba(77,208,225,0.1);}
+.modal-buttons{display:flex;gap:10px;justify-content:flex-end;}
+.modal-btn{
+  background:rgba(20,40,70,0.6);
+  border:1px solid rgba(60,120,170,0.25);
+  color:#7eb8d8;padding:8px 20px;border-radius:6px;
+  cursor:pointer;font-size:13px;font-family:inherit;transition:all 0.15s;
+}
+.modal-btn:hover{background:rgba(30,55,90,0.8);}
+.modal-btn.primary{
+  background:rgba(30,60,100,0.7);
+  border-color:rgba(77,208,225,0.4);
+  color:#a0d4f0;
+}
+.modal-btn.primary:hover{background:rgba(40,75,120,0.8);box-shadow:0 0 10px rgba(77,208,225,0.2);}
+
+/* Association line animation */
+@keyframes dashFlow{to{stroke-dashoffset:-10;}}
+.assoc-line{animation:dashFlow 3s linear infinite;}
+
+/* Mobile mode (manual toggle) */
+#app.mobile-mode{
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  gap:12px;
+  background:rgba(0,0,0,0.5);
+  overflow:auto;
+}
+#app.mobile-mode #canvas-area{
+  max-width:430px;width:100%;height:62vh;
+  border-radius:20px;overflow:hidden;
+  border:2px solid rgba(70,130,180,0.2);
+  box-shadow:0 8px 40px rgba(0,0,0,0.4);
+}
+#app.mobile-mode #detail-panel{
+  width:100%;max-width:430px;min-width:0;
+  max-height:35vh;border-left:none;
+  border-top:1px solid rgba(70,130,180,0.15);
+  border-radius:16px 16px 0 0;
+  flex-shrink:0;
+}
+#app.mobile-mode .toolbar{top:10px;left:10px;gap:6px;}
+#app.mobile-mode .toolbar button{padding:8px 14px;font-size:12px;}
+#app.mobile-mode .hint{display:none;}
+#app.mobile-mode .zoom-indicator{font-size:10px;bottom:8px;right:10px;}
+#app.mobile-mode #assoc-hint{font-size:11px;padding:6px 14px;top:54px;}
+
+/* Collapse indicator on canvas */
+.collapse-indicator{
+  font-size:10px;fill:rgba(200,220,255,0.7);
+  font-weight:bold;font-family:sans-serif;
+  pointer-events:none;
+}
+
+/* Content field - contentEditable */
+.content-field-editor{
+  min-height:80px;padding:10px 12px;
+  background:rgba(12,20,38,0.6);
+  border:1px solid rgba(70,130,180,0.15);
+  color:#b0c4de;border-radius:5px;
+  font-size:13px;font-family:inherit;line-height:1.7;
+  outline:none;overflow-y:auto;max-height:200px;
+  transition:border-color 0.15s;
+}
+.content-field-editor:focus{border-color:rgba(77,208,225,0.4);box-shadow:0 0 8px rgba(77,208,225,0.08);}
+.content-field-editor img{max-width:100%;border-radius:4px;cursor:zoom-in;margin:4px 0;display:block;}
+.content-field-view-btn{
+  background:rgba(20,50,70,0.7);border:1px solid rgba(100,180,220,0.4);
+  color:#a0d4f0;padding:4px 10px;border-radius:4px;
+  font-size:11px;cursor:pointer;font-family:inherit;
+  transition:all 0.12s;
+}
+.content-field-view-btn:hover{background:rgba(30,70,100,0.8);box-shadow:0 0 8px rgba(100,180,220,0.15);}
+
+/* Full-screen content viewer */
+#content-viewer{
+  position:fixed;inset:0;display:none;z-index:450;
+  background:rgba(6,10,18,0.98);
+  flex-direction:column;backdrop-filter:blur(8px);
+}
+.cv-header{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 24px;border-bottom:1px solid rgba(70,130,180,0.15);
+  flex-shrink:0;
+}
+.cv-close{
+  background:none;border:none;color:rgba(140,170,200,0.5);
+  font-size:24px;cursor:pointer;padding:4px 8px;border-radius:4px;
+  transition:all 0.15s;flex-shrink:0;
+}
+.cv-close:hover{color:#d0e0f0;background:rgba(70,130,180,0.1);}
+.cv-title{font-size:16px;font-weight:600;color:#d0e0f0;letter-spacing:1px;}
+.cv-body{flex:1;overflow-y:auto;padding:24px 10%;}
+.cv-editor{
+  min-height:60vh;max-width:800px;margin:0 auto;
+  color:#c8d8e8;font-size:15px;line-height:1.9;
+  outline:none;font-family:inherit;
+}
+.cv-editor:focus{outline:none;}
+.cv-editor img{max-width:100%;border-radius:6px;cursor:zoom-in;margin:8px 0;display:block;}
+.cv-editor p{margin-bottom:10px;}
+.cv-editor h1,.cv-editor h2,.cv-editor h3{color:#d0e0f0;margin:16px 0 8px;}
+.cv-editor ul,.cv-editor ol{margin:8px 0 8px 28px;}
+.cv-editor li{margin-bottom:4px;}
+.cv-editor blockquote{
+  border-left:3px solid rgba(77,208,225,0.4);
+  padding:8px 16px;margin:8px 0;color:#a0b8d0;font-style:italic;
+  background:rgba(12,20,38,0.4);border-radius:0 4px 4px 0;
+}
+.cv-editor:empty:before{
+  content:"在此输入内容... 支持文字和直接粘贴图片";
+  color:rgba(100,130,170,0.3);
+}
+
+/* Mindmap/Table import buttons */
+.mm-import-row,.tbl-import-row{
+  display:flex;gap:8px;margin-bottom:10px;
+}
+.mm-import-btn,.tbl-import-btn{
+  background:rgba(20,50,70,0.6);
+  border:1px solid rgba(100,180,220,0.25);
+  color:#5eaad8;padding:6px 14px;border-radius:5px;
+  font-size:12px;cursor:pointer;font-family:inherit;
+  transition:all 0.12s;
+}
+.mm-import-btn:hover,.tbl-import-btn:hover{
+  background:rgba(30,65,100,0.8);box-shadow:0 0 8px rgba(60,120,170,0.15);
+}
+
+/* Mobile responsive (auto) */
+@media(max-width:768px){
+  #app{flex-direction:column;}
+  #detail-panel{
+    width:100%;max-width:100%;min-width:0;
+    max-height:65vh;border-left:none;
+    border-top:1px solid rgba(70,130,180,0.15);
+    border-radius:12px 12px 0 0;
+  }
+  .detail-header{padding:14px 18px;}
+  .detail-content-scroll{padding:16px 18px;}
+  .detail-footer{padding:12px 18px;}
+  .toolbar button{padding:6px 12px;font-size:12px;}
+  .hint{font-size:10px;bottom:8px;left:10px;}
+  .zoom-indicator{font-size:10px;bottom:8px;right:10px;}
+  #assoc-hint{font-size:11px;padding:6px 14px;top:54px;}
+}
+@media(max-width:480px){
+  .toolbar{gap:4px;}
+  .toolbar button{padding:5px 8px;font-size:11px;letter-spacing:0;}
+}
+/* ---- Auth & Sync styles ---- */
+#auth-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(6,10,18,0.97);backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:center;
+  overflow-y:auto;padding:20px;
+}
+#auth-overlay.hidden{display:none;}
+.auth-card{
+  width:100%;max-width:380px;
+  background:rgba(12,20,38,0.9);
+  border:1px solid rgba(70,130,180,0.2);
+  border-radius:16px;padding:32px 28px;
+  box-shadow:0 12px 48px rgba(0,0,0,0.5);
+}
+.auth-logo{
+  width:64px;height:64px;margin:0 auto 16px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(240,224,176,0.15),transparent);
+  border:2px solid rgba(232,213,160,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;color:#e8d5a0;font-family:serif;font-weight:bold;
+}
+.auth-title{text-align:center;font-size:18px;color:#d0e0f0;letter-spacing:2px;margin-bottom:6px;}
+.auth-subtitle{text-align:center;font-size:12px;color:rgba(140,170,200,0.5);margin-bottom:24px;}
+.auth-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid rgba(70,130,180,0.15);}
+.auth-tab{
+  flex:1;padding:10px;text-align:center;
+  background:none;border:none;color:rgba(140,170,200,0.4);
+  font-size:14px;cursor:pointer;border-bottom:2px solid transparent;
+  transition:all 0.2s;
+}
+.auth-tab.active{color:#4dd0e1;border-bottom-color:#4dd0e1;}
+.auth-field{margin-bottom:14px;}
+.auth-field input{
+  width:100%;padding:10px 14px;
+  background:rgba(6,10,18,0.6);
+  border:1px solid rgba(70,130,180,0.2);
+  border-radius:8px;color:#c8d8e8;font-size:14px;
+  outline:none;transition:border 0.2s;
+}
+.auth-field input:focus{border-color:rgba(77,208,225,0.4);}
+.auth-field input::placeholder{color:rgba(100,130,170,0.3);}
+.auth-btn{
+  width:100%;padding:12px;margin-top:6px;
+  background:linear-gradient(135deg,rgba(77,208,225,0.15),rgba(77,208,225,0.08));
+  border:1px solid rgba(77,208,225,0.3);
+  border-radius:8px;color:#4dd0e1;font-size:15px;
+  cursor:pointer;transition:all 0.2s;letter-spacing:1px;
+}
+.auth-btn:hover{background:rgba(77,208,225,0.2);box-shadow:0 0 16px rgba(77,208,225,0.15);}
+.auth-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.auth-error{
+  color:#ff6b6b;font-size:12px;text-align:center;
+  margin-top:8px;min-height:18px;
+}
+.auth-divider{
+  text-align:center;color:rgba(140,170,200,0.3);
+  font-size:12px;margin:16px 0;position:relative;
+}
+.auth-divider:before,.auth-divider:after{
+  content:"";position:absolute;top:50%;width:35%;height:1px;
+  background:rgba(70,130,180,0.1);
+}
+.auth-divider:before{left:0;}
+.auth-divider:after{right:0;}
+.auth-guest-btn{
+  width:100%;padding:10px;
+  background:none;border:1px solid rgba(70,130,180,0.15);
+  border-radius:8px;color:rgba(140,170,200,0.5);
+  font-size:13px;cursor:pointer;transition:all 0.2s;
+}
+.auth-guest-btn:hover{color:#80deea;border-color:rgba(77,208,225,0.2);}
+.auth-config-toggle{
+  text-align:center;margin-top:16px;font-size:11px;
+  color:rgba(100,130,170,0.3);cursor:pointer;
+}
+.auth-config-toggle:hover{color:rgba(140,170,200,0.5);}
+.auth-config-section{
+  display:none;margin-top:12px;padding:12px;
+  background:rgba(6,10,18,0.6);border-radius:8px;
+}
+.auth-config-section.show{display:block;}
+.auth-config-section input{
+  width:100%;padding:8px 10px;margin-bottom:8px;
+  background:rgba(6,10,18,0.8);
+  border:1px solid rgba(70,130,180,0.15);
+  border-radius:6px;color:#c8d8e8;font-size:12px;outline:none;
+}
+.auth-config-section input::placeholder{color:rgba(100,130,170,0.25);}
+
+/* Sync indicator */
+#sync-indicator{
+  position:absolute;top:14px;right:14px;z-index:10;
+  display:flex;align-items:center;gap:6px;
+  padding:5px 12px;
+  background:rgba(12,20,38,0.85);
+  border:1px solid rgba(70,130,180,0.15);
+  border-radius:20px;
+  font-size:11px;color:rgba(140,170,200,0.6);
+  cursor:pointer;transition:all 0.2s;
+  max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#sync-indicator:hover{border-color:rgba(77,208,225,0.3);}
+#sync-indicator.syncing{color:#ffd54f;}
+#sync-indicator.synced{color:#4dd0e1;}
+#sync-indicator.offline{color:rgba(140,170,200,0.3);}
+#sync-indicator.error{color:#ff6b6b;}
+.sync-dot{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+  background:rgba(140,170,200,0.3);
+}
+#sync-indicator.syncing .sync-dot{background:#ffd54f;animation:pulse 1s infinite;}
+#sync-indicator.synced .sync-dot{background:#4dd0e1;}
+#sync-indicator.offline .sync-dot{background:rgba(140,170,200,0.2);}
+#sync-indicator.error .sync-dot{background:#ff6b6b;}
+@keyframes pulse{0%,100%{opacity:0.5;}50%{opacity:1;}}
+
+/* User menu */
+#user-menu{
+  position:absolute;top:44px;right:14px;z-index:11;
+  background:rgba(12,20,38,0.95);
+  border:1px solid rgba(70,130,180,0.15);
+  border-radius:8px;padding:8px;
+  display:none;min-width:180px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+#user-menu.show{display:block;}
+.user-menu-info{padding:8px 10px;border-bottom:1px solid rgba(70,130,180,0.08);}
+.user-menu-email{font-size:12px;color:#c8d8e8;word-break:break-all;}
+.user-menu-label{font-size:10px;color:rgba(100,130,170,0.4);margin-top:2px;}
+.user-menu-item{
+  display:block;width:100%;padding:8px 10px;
+  background:none;border:none;color:rgba(140,170,200,0.7);
+  font-size:13px;text-align:left;cursor:pointer;
+  border-radius:6px;transition:all 0.15s;
+}
+.user-menu-item:hover{background:rgba(77,208,225,0.08);color:#80deea;}
+.user-menu-item.danger:hover{background:rgba(255,107,107,0.08);color:#ff6b6b;}
+
+#app.mobile-mode #sync-indicator{top:10px;right:10px;font-size:10px;padding:4px 10px;}
+</style>
+</head>
+<body>
+<!-- Auth overlay -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">道</div>
+    <div class="auth-title">道树</div>
+    <div class="auth-subtitle">云端同步 · 多端同步</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="auth-tab-login">登录</button>
+      <button class="auth-tab" id="auth-tab-register">注册</button>
+    </div>
+    <div id="auth-form-login" class="auth-form">
+      <div class="auth-field"><input type="email" id="login-email" placeholder="邮箱地址" autocomplete="email"></div>
+      <div class="auth-field"><input type="password" id="login-password" placeholder="密码" autocomplete="current-password"></div>
+      <button class="auth-btn" id="login-btn">登录并同步</button>
+      <div class="auth-error" id="login-error"></div>
+    </div>
+    <div id="auth-form-register" class="auth-form" style="display:none;">
+      <div class="auth-field"><input type="email" id="reg-email" placeholder="邮箱地址" autocomplete="email"></div>
+      <div class="auth-field"><input type="password" id="reg-password" placeholder="设置密码（至少6位）" autocomplete="new-password"></div>
+      <div class="auth-field"><input type="password" id="reg-password2" placeholder="确认密码" autocomplete="new-password"></div>
+      <button class="auth-btn" id="register-btn">注册并同步</button>
+      <div class="auth-error" id="reg-error"></div>
+    </div>
+    <div class="auth-divider">或</div>
+    <button class="auth-guest-btn" id="guest-btn">暂不登录，使用本地模式</button>
+    <div class="auth-config-toggle" id="config-toggle">⚙ Supabase 配置</div>
+    <div class="auth-config-section" id="config-section">
+      <input type="text" id="sb-url" placeholder="Supabase Project URL">
+      <input type="text" id="sb-key" placeholder="Supabase Anon Key">
+      <button class="auth-btn" id="save-config-btn" style="font-size:13px;padding:8px;">保存配置</button>
+    </div>
+  </div>
+</div>
+<!-- Sync indicator -->
+<div id="sync-indicator" class="offline" title="点击查看用户菜单">
+  <span class="sync-dot"></span>
+  <span id="sync-text">未连接</span>
+</div>
+<!-- User menu -->
+<div id="user-menu">
+  <div class="user-menu-info">
+    <div class="user-menu-email" id="user-menu-email"></div>
+    <div class="user-menu-label" id="user-menu-label"></div>
+  </div>
+  <button class="user-menu-item" id="menu-sync-now">立即同步</button>
+  <button class="user-menu-item" id="menu-export">导出数据</button>
+  <button class="user-menu-item" id="menu-import">导入数据</button>
+  <button class="user-menu-item danger" id="menu-logout">退出登录</button>
+</div>
+<div id="app">
+  <div id="canvas-area">
+    <div class="toolbar">
+      <button id="btn-add-branch">新建支干</button>
+      <button id="btn-add-leaf" disabled>新建叶子</button>
+      <button id="btn-assoc-mode">关联模式</button>
+      <button id="btn-show-assoc">查看全部关联</button>
+      <button id="btn-mobile-mode">手机模式</button>
+      <button id="btn-reset-view">重置视图</button>
+    </div>
+    <div id="assoc-hint">关联模式：点击起点叶子，再点击终点叶子</div>
+    <div class="hint">双击空白新建支干 · 双击节点编辑标题 · 点击支干展开/收缩 · 悬停查看信息 · 拖拽节点 · 滚轮缩放 · 空白拖拽平移 · 右键删除</div>
+    <div class="zoom-indicator" id="zoom-indicator">100%</div>
+    <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow-soft" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3"/></filter>
+        <filter id="glow-medium" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="6"/></filter>
+        <filter id="glow-strong" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="10"/></filter>
+        <filter id="glow-leaf" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
+        <linearGradient id="trunk-grad" x1="0%" y1="100%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#6b4e10" stop-opacity="0.6"/>
+          <stop offset="25%" stop-color="#b8860b" stop-opacity="0.5"/>
+          <stop offset="55%" stop-color="#daa520" stop-opacity="0.45"/>
+          <stop offset="85%" stop-color="#e8d5a0" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#f0e0a0" stop-opacity="0.25"/>
+        </linearGradient>
+      </defs>
+      <g id="viewport">
+        <g id="links-group"></g>
+        <g id="assocs-group"></g>
+        <g id="nodes-group"></g>
+      </g>
+    </svg>
+  </div>
+  <div id="detail-panel">
+    <div id="detail-empty">
+      <div class="logo">道树</div>
+      <p>点击节点查看详情</p>
+      <p style="font-size:11px;color:rgba(100,130,170,0.25)">双击空白处创建新节点</p>
+    </div>
+    <div id="detail-content">
+      <div class="detail-header">
+        <button class="detail-close-btn" id="detail-close" title="关闭 (ESC)">×</button>
+        <div class="detail-title-wrap">
+          <div class="detail-type-tag" id="detail-type"></div>
+          <input class="detail-title-input" id="detail-title" placeholder="标题" />
+        </div>
+      </div>
+      <div class="detail-content-scroll" id="detail-scroll">
+        <div id="content-fields"></div>
+        <div class="assoc-section" id="assoc-section" style="display:none;">
+          <div class="rt-field-label">关联</div>
+          <div class="assoc-list" id="assoc-list"></div>
+        </div>
+      </div>
+      <div class="detail-footer">
+        <button class="btn btn-add" id="detail-add-sub" style="display:none;">添加分支</button>
+        <button class="btn btn-add" id="detail-add-leaf-btn" style="display:none;">添加叶子</button>
+        <button class="btn btn-add" id="detail-add" style="display:none;">添加支干</button>
+        <button class="btn btn-delete" id="detail-delete">删除节点</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tooltip"></div>
+<div id="line-menu">
+  <button id="line-menu-edit">编辑关系</button>
+  <hr>
+  <button id="line-menu-delete">删除关联</button>
+</div>
+<div id="assoc-dialog">
+  <div class="modal-content">
+    <p class="modal-text" id="assoc-dialog-text">这两个节点之间的关系是什么？</p>
+    <input type="text" class="modal-input" id="assoc-label-input" placeholder="输入关系..." />
+    <div class="modal-buttons">
+      <button class="modal-btn" id="assoc-dialog-cancel">取消</button>
+      <button class="modal-btn primary" id="assoc-dialog-ok">确定</button>
+    </div>
+  </div>
+</div>
+<div class="ctx-menu" id="ctx-menu"></div>
+<div id="image-lightbox">
+  <button class="close-lb" id="close-lightbox">×</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+<div id="content-viewer">
+  <div class="cv-header">
+    <button class="cv-close" id="cv-close" title="关闭 (ESC)">×</button>
+    <div class="cv-title" id="cv-title">内容详情</div>
+  </div>
+  <div class="cv-body">
+    <div class="cv-editor" id="cv-editor" contenteditable="true"></div>
+  </div>
+</div>
+<script>
+"use strict";
+var SVG_NS="http://www.w3.org/2000/svg";
+var svg=document.getElementById("tree-svg");
+var canvasArea=document.getElementById("canvas-area");
+var linksGroup=document.getElementById("links-group");
+var assocsGroup=document.getElementById("assocs-group");
+var nodesGroup=document.getElementById("nodes-group");
+var viewportEl=document.getElementById("viewport");
+var zoomIndicator=document.getElementById("zoom-indicator");
+var tooltip=document.getElementById("tooltip");
+var assocHint=document.getElementById("assoc-hint");
+var lineMenu=document.getElementById("line-menu");
+var assocDialog=document.getElementById("assoc-dialog");
+var assocLabelInput=document.getElementById("assoc-label-input");
+var ctxMenu=document.getElementById("ctx-menu");
+var imageLightbox=document.getElementById("image-lightbox");
+var lightboxImg=document.getElementById("lightbox-img");
+
+var contentFieldsEl=document.getElementById("content-fields");
+var detailEmpty=document.getElementById("detail-empty");
+var detailContent=document.getElementById("detail-content");
+var detailType=document.getElementById("detail-type");
+var detailTitle=document.getElementById("detail-title");
+var assocSection=document.getElementById("assoc-section");
+var assocList=document.getElementById("assoc-list");
+var detailAddBtn=document.getElementById("detail-add");
+var detailAddSubBtn=document.getElementById("detail-add-sub");
+var detailAddLeafBtn=document.getElementById("detail-add-leaf-btn");
+var detailDeleteBtn=document.getElementById("detail-delete");
+var detailCloseBtn=document.getElementById("detail-close");
+var btnAddBranch=document.getElementById("btn-add-branch");
+var btnAddLeaf=document.getElementById("btn-add-leaf");
+var btnAssocMode=document.getElementById("btn-assoc-mode");
+var btnShowAssoc=document.getElementById("btn-show-assoc");
+var btnResetView=document.getElementById("btn-reset-view");
+var btnMobileMode=document.getElementById("btn-mobile-mode");
+var appEl=document.getElementById("app");
+var contentViewer=document.getElementById("content-viewer");
+var cvEditor=document.getElementById("cv-editor");
+var cvTitle=document.getElementById("cv-title");
+var cvCloseBtn=document.getElementById("cv-close");
+var cvEditingNode=null;
+
+/* ---- Supabase & Cloud Sync ---- */
+var sbClient=null;
+var sbConfig={url:"",key:""};
+var sbUser=null;
+var sbDeviceId=(function(){
+  var id=localStorage.getItem("daoshu_device_id");
+  if(!id){id="d_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8);localStorage.setItem("daoshu_device_id",id);}
+  return id;
+})();
+var isOnline=navigator.onLine;
+var isSyncing=false;
+var lastSyncTime=0;
+var pendingSyncTimer=null;
+var realtimeChannel=null;
+var suppressPull=false;
+
+var authOverlay=document.getElementById("auth-overlay");
+var syncIndicator=document.getElementById("sync-indicator");
+var syncText=document.getElementById("sync-text");
+var userMenu=document.getElementById("user-menu");
+var userMenuEmail=document.getElementById("user-menu-email");
+var userMenuLabel=document.getElementById("user-menu-label");
+var CONFIG_KEY="daoshu_supabase_config";
+
+function loadSBConfig(){
+  try{
+    var raw=localStorage.getItem(CONFIG_KEY);
+    if(raw){
+      var c=JSON.parse(raw);
+      sbConfig.url=c.url||"";
+      sbConfig.key=c.key||"";
+      return !!sbConfig.url&&!!sbConfig.key;
+    }
+  }catch(e){}
+  return false;
+}
+function saveSBConfig(url,key){
+  sbConfig.url=url;sbConfig.key=key;
+  localStorage.setItem(CONFIG_KEY,JSON.stringify({url:url,key:key}));
+}
+function initSBClient(){
+  if(!sbConfig.url||!sbConfig.key)return false;
+  try{
+    if(typeof window.supabase==="undefined")return false;
+    sbClient=window.supabase.createClient(sbConfig.url,sbConfig.key,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
+      realtime:{params:{eventsPerSecond:2}}
+    });
+    return true;
+  }catch(e){console.error("Supabase init error:",e);return false;}
+}
+function setSyncStatus(status,text){
+  syncIndicator.className=status;
+  syncText.textContent=text||({
+    syncing:"同步中...",synced:"已同步",offline:"离线模式",error:"同步失败",local:"本地模式"
+  }[status]||"");
+}
+function getTreeDataForSync(){
+  var data={nodes:state.nodes.map(function(n){
+    var node={id:n.id,title:n.title,type:n.type,parentId:n.parentId,x:Math.round(n.x),y:Math.round(n.y),associations:n.associations||[]};
+    if(n.collapsed!==undefined)node.collapsed=n.collapsed;
+    if(n.type==="leaf"){
+      node.contentType=n.contentType||"rich-text";
+      node.leafData=n.leafData;
+      node.mindmapData=n.mindmapData;
+      node.tableData=n.tableData;
+      node.galleryData=n.galleryData;
+    }else{node.content=n.content||"";}
+    return node;
+  })};
+  return data;
+}
+function mergeTreeData(cloudData,localData){
+  if(!cloudData||!cloudData.nodes)return localData;
+  if(!localData||!localData.nodes)return cloudData;
+  var cloudNodes=cloudData.nodes;
+  var localNodes=localData.nodes;
+  var cloudMap={};
+  cloudNodes.forEach(function(n){cloudMap[n.id]=n;});
+  var localMap={};
+  localNodes.forEach(function(n){localMap[n.id]=n;});
+  var merged=[];
+  var seen={};
+  function mergeNode(n,src){
+    var id=n.id;
+    if(seen[id])return;
+    seen[id]=true;
+    var local=localMap[id];
+    var cloud=cloudMap[id];
+    if(src==="local"&&local){merged.push(local);}
+    else if(src==="cloud"&&cloud){merged.push(cloud);}
+    else if(local&&cloud){
+      if(local._updatedAt&&cloud._updatedAt){
+        merged.push(new Date(local._updatedAt)>=new Date(cloud._updatedAt)?local:cloud);
+      }else{merged.push(cloud);}
+    }else if(local){merged.push(local);}
+    else if(cloud){merged.push(cloud);}
+  }
+  localNodes.forEach(function(n){mergeNode(n,"local");});
+  cloudNodes.forEach(function(n){mergeNode(n,"cloud");});
+  return{nodes:merged};
+}
+async function pushToCloud(){
+  if(!sbClient||!sbUser||!isOnline)return;
+  if(isSyncing)return;
+  isSyncing=true;
+  setSyncStatus("syncing","同步中...");
+  try{
+    var treeData=getTreeDataForSync();
+    var now=new Date().toISOString();
+    treeData._updatedAt=now;
+    var{error}=await sbClient.from("daoshu_trees").upsert({
+      user_id:sbUser.id,
+      tree_data:treeData,
+      device_id:sbDeviceId,
+      updated_at:now
+    });
+    if(error)throw error;
+    lastSyncTime=Date.now();
+    setSyncStatus("synced","已同步");
+  }catch(e){
+    console.error("Push error:",e);
+    setSyncStatus("error","同步失败");
+  }finally{
+    isSyncing=false;
+  }
+}
+async function pullFromCloud(){
+  if(!sbClient||!sbUser||!isOnline)return null;
+  try{
+    var{data,error}=await sbClient.from("daoshu_trees").select("tree_data,updated_at,device_id").eq("user_id",sbUser.id).maybeSingle();
+    if(error)throw error;
+    return data;
+  }catch(e){
+    console.error("Pull error:",e);
+    return null;
+  }
+}
+async function syncFromCloud(){
+  if(!sbClient||!sbUser)return;
+  setSyncStatus("syncing","拉取数据...");
+  var cloudRow=await pullFromCloud();
+  if(!cloudRow){
+    setSyncStatus("synced","本地为主");
+    return;
+  }
+  var cloudData=cloudRow.tree_data;
+  if(!cloudData||!cloudData.nodes){
+    setSyncStatus("synced","空云端");
+    return;
+  }
+  var localRaw=localStorage.getItem(STORAGE_KEY);
+  var localData=null;
+  try{localData=localRaw?JSON.parse(localRaw):null;}catch(e){}
+  if(cloudRow.device_id===sbDeviceId){
+    setSyncStatus("synced","已是最新");
+    return;
+  }
+  suppressPull=true;
+  var merged=mergeTreeData(cloudData,localData);
+  state.nodes=(merged.nodes||[]).map(function(n){
+    var node=Object.assign({},n,{vx:0,vy:0,fx:0,fy:0});
+    if(!node.associations)node.associations=[];
+    if(node.collapsed===undefined)node.collapsed=false;
+    if(node.type==="leaf"){
+      node.contentType=node.contentType||"rich-text";
+      if(!node.leafData)node.leafData=createLeafRichData();
+      if(!node.mindmapData)node.mindmapData=defaultMindmap(node.title);
+      if(!node.tableData)node.tableData=defaultTableData();
+      if(!node.galleryData)node.galleryData=[];
+      if(node.leafData.contentHtml===undefined)node.leafData.contentHtml="";
+    }
+    return node;
+  });
+  state.assocVersion++;
+  simAlpha=1;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify({nodes:state.nodes}));
+  updateDetailPanel();
+  setSyncStatus("synced","已同步");
+  setTimeout(function(){suppressPull=false;},2000);
+}
+function scheduleSync(){
+  if(!sbClient||!sbUser||!isOnline)return;
+  if(pendingSyncTimer)clearTimeout(pendingSyncTimer);
+  setSyncStatus("syncing","等待同步...");
+  pendingSyncTimer=setTimeout(function(){
+    pendingSyncTimer=null;
+    pushToCloud();
+  },2000);
+}
+function subscribeRealtime(){
+  if(!sbClient||!sbUser)return;
+  if(realtimeChannel)realtimeChannel.unsubscribe();
+  realtimeChannel=sbClient.channel("daoshu_changes")
+    .on("postgres_changes",{
+      event:"*",schema:"public",table:"daoshu_trees",filter:"user_id=eq."+sbUser.id
+    },function(payload){
+      if(suppressPull)return;
+      if(payload.new&&payload.new.device_id===sbDeviceId)return;
+      if(payload.new&&payload.new.tree_data){
+        var localRaw=localStorage.getItem(STORAGE_KEY);
+        var localData=null;
+        try{localData=localRaw?JSON.parse(localRaw):null;}catch(e){}
+        var merged=mergeTreeData(payload.new.tree_data,localData);
+        suppressPull=true;
+        state.nodes=(merged.nodes||[]).map(function(n){
+          var node=Object.assign({},n,{vx:0,vy:0,fx:0,fy:0});
+          if(!node.associations)node.associations=[];
+          if(node.collapsed===undefined)node.collapsed=false;
+          if(node.type==="leaf"){
+            node.contentType=n.contentType||"rich-text";
+            if(!n.leafData)n.leafData=createLeafRichData();
+            if(!n.mindmapData)n.mindmapData=defaultMindmap(n.title);
+            if(!n.tableData)n.tableData=defaultTableData();
+            if(!n.galleryData)n.galleryData=[];
+            if(n.leafData.contentHtml===undefined)n.leafData.contentHtml="";
+          }
+          return node;
+        });
+        state.assocVersion++;
+        simAlpha=1;
+        localStorage.setItem(STORAGE_KEY,JSON.stringify({nodes:state.nodes}));
+        updateDetailPanel();
+        setSyncStatus("synced","实时同步");
+        setTimeout(function(){suppressPull=false;},2000);
+      }
+    })
+    .subscribe();
+}
+
+/* ---- Auth ---- */
+async function handleLogin(){
+  var email=document.getElementById("login-email").value.trim();
+  var password=document.getElementById("login-password").value;
+  var errEl=document.getElementById("login-error");
+  errEl.textContent="";
+  if(!email||!password){errEl.textContent="请填写邮箱和密码";return;}
+  var btn=document.getElementById("login-btn");
+  btn.disabled=true;btn.textContent="登录中...";
+  try{
+    var{data,error}=await sbClient.auth.signInWithPassword({email:email,password:password});
+    if(error)throw error;
+    sbUser=data.user;
+    await onAuthSuccess(sbUser);
+  }catch(e){
+    errEl.textContent=e.message||"登录失败";
+    btn.disabled=false;btn.textContent="登录并同步";
+  }
+}
+async function handleRegister(){
+  var email=document.getElementById("reg-email").value.trim();
+  var password=document.getElementById("reg-password").value;
+  var password2=document.getElementById("reg-password2").value;
+  var errEl=document.getElementById("reg-error");
+  errEl.textContent="";
+  if(!email||!password){errEl.textContent="请填写邮箱和密码";return;}
+  if(password.length<6){errEl.textContent="密码至少6位";return;}
+  if(password!==password2){errEl.textContent="两次密码不一致";return;}
+  var btn=document.getElementById("register-btn");
+  btn.disabled=true;btn.textContent="注册中...";
+  try{
+    var{data,error}=await sbClient.auth.signUp({email:email,password:password});
+    if(error)throw error;
+    if(data.user){
+      sbUser=data.user;
+      await onAuthSuccess(sbUser);
+    }else{
+      errEl.textContent="请检查邮箱确认链接";
+      btn.disabled=false;btn.textContent="注册并同步";
+    }
+  }catch(e){
+    errEl.textContent=e.message||"注册失败";
+    btn.disabled=false;btn.textContent="注册并同步";
+  }
+}
+async function onAuthSuccess(user){
+  sbUser=user;
+  authOverlay.classList.add("hidden");
+  userMenuEmail.textContent=user.email||"";
+  userMenuLabel.textContent="已登录";
+  await syncFromCloud();
+  subscribeRealtime();
+  scheduleSync();
+}
+async function handleLogout(){
+  if(sbClient){
+    if(realtimeChannel){realtimeChannel.unsubscribe();realtimeChannel=null;}
+    await sbClient.auth.signOut();
+  }
+  sbUser=null;
+  setSyncStatus("offline","本地模式");
+  authOverlay.classList.remove("hidden");
+  userMenu.classList.remove("show");
+  document.getElementById("login-btn").disabled=false;
+  document.getElementById("login-btn").textContent="登录并同步";
+  document.getElementById("register-btn").disabled=false;
+  document.getElementById("register-btn").textContent="注册并同步";
+}
+function handleGuestMode(){
+  authOverlay.classList.add("hidden");
+  setSyncStatus("local","本地模式");
+  syncIndicator.title="本地模式 - 点击登录云同步";
+}
+
+/* ---- Auth UI setup ---- */
+function setupAuthUI(){
+  var tabLogin=document.getElementById("auth-tab-login");
+  var tabReg=document.getElementById("auth-tab-register");
+  var formLogin=document.getElementById("auth-form-login");
+  var formReg=document.getElementById("auth-form-register");
+  tabLogin.addEventListener("click",function(){
+    tabLogin.classList.add("active");tabReg.classList.remove("active");
+    formLogin.style.display="";formReg.style.display="none";
+  });
+  tabReg.addEventListener("click",function(){
+    tabReg.classList.add("active");tabLogin.classList.remove("active");
+    formReg.style.display="";formLogin.style.display="none";
+  });
+  document.getElementById("login-btn").addEventListener("click",handleLogin);
+  document.getElementById("register-btn").addEventListener("click",handleRegister);
+  document.getElementById("guest-btn").addEventListener("click",handleGuestMode);
+  document.getElementById("config-toggle").addEventListener("click",function(){
+    document.getElementById("config-section").classList.toggle("show");
+    if(sbConfig.url)document.getElementById("sb-url").value=sbConfig.url;
+    if(sbConfig.key)document.getElementById("sb-key").value=sbConfig.key;
+  });
+  document.getElementById("save-config-btn").addEventListener("click",function(){
+    var url=document.getElementById("sb-url").value.trim();
+    var key=document.getElementById("sb-key").value.trim();
+    if(!url||!key){alert("请填写完整");return;}
+    saveSBConfig(url,key);
+    location.reload();
+  });
+  syncIndicator.addEventListener("click",function(e){
+    e.stopPropagation();
+    if(sbUser){
+      userMenu.classList.toggle("show");
+    }else{
+      authOverlay.classList.remove("hidden");
+    }
+  });
+  document.addEventListener("click",function(e){
+    if(!userMenu.contains(e.target)&&e.target!==syncIndicator){
+      userMenu.classList.remove("show");
+    }
+  });
+  document.getElementById("menu-sync-now").addEventListener("click",async function(){
+    userMenu.classList.remove("show");
+    if(sbUser){await syncFromCloud();await pushToCloud();}
+  });
+  document.getElementById("menu-export").addEventListener("click",function(){
+    userMenu.classList.remove("show");
+    var data=getTreeDataForSync();
+    var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="daoshu_backup_"+new Date().toISOString().slice(0,10)+".json";
+    a.click();
+  });
+  document.getElementById("menu-import").addEventListener("click",function(){
+    userMenu.classList.remove("show");
+    var input=document.createElement("input");
+    input.type="file";input.accept=".json";
+    input.addEventListener("change",function(){
+      var file=input.files[0];if(!file)return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        try{
+          var data=JSON.parse(e.target.result);
+          if(data&&data.nodes){
+            state.nodes=data.nodes.map(function(n){
+              var node=Object.assign({},n,{vx:0,vy:0,fx:0,fy:0});
+              if(!node.associations)node.associations=[];
+              if(node.collapsed===undefined)node.collapsed=false;
+              return node;
+            });
+            state.assocVersion++;simAlpha=1;
+            saveState();updateDetailPanel();
+            if(sbUser)scheduleSync();
+          }
+        }catch(err){alert("导入失败：文件格式错误");}
+      };
+      reader.readAsText(file);
+    });
+    input.click();
+  });
+  document.getElementById("menu-logout").addEventListener("click",handleLogout);
+  window.addEventListener("online",function(){
+    isOnline=true;
+    if(sbUser){syncFromCloud();subscribeRealtime();}
+    else setSyncStatus("local","本地模式");
+  });
+  window.addEventListener("offline",function(){
+    isOnline=false;
+    if(sbUser)setSyncStatus("offline","离线模式");
+  });
+}
+
+/* ---- PWA Service Worker ---- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    navigator.serviceWorker.register("./sw.js").catch(function(e){
+      console.log("SW registration failed:",e);
+    });
+  });
+}
+
+/* ---- App init (auth check) ---- */
+async function initApp(){
+  setupAuthUI();
+  if(!loadSBConfig()){
+    setSyncStatus("local","本地模式");
+    return;
+  }
+  if(!initSBClient()){
+    setSyncStatus("local","本地模式");
+    return;
+  }
+  var{data:{session}}=await sbClient.auth.getSession();
+  if(session&&session.user){
+    sbUser=session.user;
+    await onAuthSuccess(sbUser);
+  }else{
+    authOverlay.classList.remove("hidden");
+    setSyncStatus("local","未登录");
+  }
+}
+
+var STORAGE_KEY="daoshu_data_v3";
+var TYPE_LABELS={trunk:"主干",branch:"支干",leaf:"叶子"};
+var CONTENT_TYPES=["rich-text","mindmap","table","gallery"];
+var CONTENT_TYPE_LABELS={"rich-text":"富文本","mindmap":"思维导图","table":"表格","gallery":"画廊"};
+var CONTENT_TYPE_COLORS={"rich-text":"#a0d4f0","mindmap":"#c8a0e0","table":"#ffd54f","gallery":"#80cbc4"};
+
+/* ---- Leaf SVG path ---- */
+var LEAF_PATH="M 0,-16 C 8,-12 10,-4 6,6 C 4,9 2,11 0,11 C -2,11 -4,9 -6,6 C -10,-4 -8,-12 0,-16 Z";
+var LEAF_VEIN="M 0,-13 L 0,8";
+
+/* ---- Node visual config ---- */
+var NODE_STYLE={
+  trunk:{radius:38,fill:"rgba(240,224,176,0.08)",stroke:"#e8d5a0",glow:"#f0e0b0",text:"#e8d5a0",fontSize:16,breathBase:0.06,breathAmp:0.05,breathPeriod:5},
+  branch1:{radius:32,fill:"rgba(77,208,225,0.08)",stroke:"#4dd0e1",glow:"#4dd0e1",text:"#80deea",fontSize:11,breathBase:0.05,breathAmp:0.04,breathPeriod:4},
+  branch2:{radius:24,fill:"rgba(77,208,225,0.06)",stroke:"#4dd0e1",glow:"#4dd0e1",text:"#80deea",fontSize:10,breathBase:0.04,breathAmp:0.03,breathPeriod:3.5},
+  leaf:{radius:16,fill:"#a5d6a7",stroke:"#a5d6a7",glow:"#a5d6a7",text:"#c8e6c9",fontSize:9,breathBase:0.04,breathAmp:0.04,breathPeriod:3.5},
+};
+var LEAF_STATUS_STYLE={
+  "待实践":{fillOp:0.06,strokeOp:0.18,glowMult:0.2,breathMult:0.3,textOp:0.35},
+  "已实践":{fillOp:0.22,strokeOp:0.6,glowMult:1.0,breathMult:1.0,textOp:0.85},
+  "已在用":{fillOp:0.4,strokeOp:0.95,glowMult:1.8,breathMult:1.6,textOp:1.0},
+};
+
+var state={nodes:[],selectedId:null,assocMode:false,assocStart:null,showAllAssoc:false,flashingNode:null,flashStart:0,assocVersion:0};
+var viewport={x:0,y:0,scale:1};
+var drag=null,pan=null,clickTimer=null,simAlpha=1;
+var pinchData=null;
+var pendingAssoc=null;
+var pendingLineEdit=null;
+var lastAssocRenderVersion=-1;
+var lastShowAllAssoc=null;
+var lastSelectedForAssoc=null;
+var hoveringAssocLine=false;
+var dragTransferTarget=null;
+var previewMode=false;
+var currentMindmapNodeId=null;
+
+/* ---------- Utils ---------- */
+function genId(){return "n_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,7);}
+function hashId(id){var h=0;for(var i=0;i<id.length;i++){h=((h<<5)-h+id.charCodeAt(i))|0;}return (Math.abs(h)%1000)/1000;}
+function getNode(id){for(var i=0;i<state.nodes.length;i++){if(state.nodes[i].id===id)return state.nodes[i];}return null;}
+function getChildren(id){return state.nodes.filter(function(n){return n.parentId===id;});}
+function isNodeVisible(nodeId){
+  var node=getNode(nodeId);if(!node)return false;
+  if(!node.parentId)return true;
+  var parent=getNode(node.parentId);
+  while(parent){
+    if(parent.collapsed)return false;
+    parent=parent.parentId?getNode(parent.parentId):null;
+  }
+  return true;
+}
+function getTrunk(){for(var i=0;i<state.nodes.length;i++){if(state.nodes[i].type==="trunk")return state.nodes[i];}return null;}
+function findNodeGroup(target){var el=target;while(el&&el!==svg){var cls=el.getAttribute&&el.getAttribute("class");if(cls&&cls.indexOf("node-group")!==-1)return el;el=el.parentNode;}return null;}
+function escapeHtml(str){var div=document.createElement("div");div.textContent=str;return div.innerHTML;}
+function getMousePos(e){
+  var rect=svg.getBoundingClientRect();
+  var cx,cy;
+  if(e.touches&&e.touches.length>0){cx=e.touches[0].clientX;cy=e.touches[0].clientY;}
+  else if(e.changedTouches&&e.changedTouches.length>0){cx=e.changedTouches[0].clientX;cy=e.changedTouches[0].clientY;}
+  else{cx=e.clientX;cy=e.clientY;}
+  return{x:cx-rect.left,y:cy-rect.top,clientX:cx,clientY:cy};
+}
+function screenToWorld(sx,sy){return{x:(sx-viewport.x)/viewport.scale,y:(sy-viewport.y)/viewport.scale};}
+function createEl(tag){return document.createElementNS(SVG_NS,tag);}
+function compressImage(file,callback){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var canvas=document.createElement("canvas");
+      var maxDim=600;
+      var scale=Math.min(maxDim/img.width,maxDim/img.height,1);
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      var ctx=canvas.getContext("2d");
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      callback(canvas.toDataURL("image/jpeg",0.75));
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* Simple Markdown parser */
+function parseMarkdown(text){
+  if(!text)return "";
+  var lines=text.split("\n");
+  var html="",inList=null,inQuote=false;
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i];
+    var trimmed=line.trim();
+    if(trimmed===""){if(inList){html+="</"+inList+">";inList=null;}if(inQuote){html+="</blockquote>";inQuote=false;}continue;}
+    /* Headers */
+    var hMatch=trimmed.match(/^(#{1,6})\s+(.*)/);
+    if(hMatch){
+      if(inList){html+="</"+inList+">";inList=null;}
+      if(inQuote){html+="</blockquote>";inQuote=false;}
+      var level=hMatch[1].length;
+      html+="<h"+level+">"+inlineMd(hMatch[2])+"</h"+level+">";
+      continue;
+    }
+    /* Unordered list */
+    var ulMatch=trimmed.match(/^[-*]\s+(.*)/);
+    if(ulMatch){
+      if(inQuote){html+="</blockquote>";inQuote=false;}
+      if(inList!=="ul"){if(inList)html+="</"+inList+">";html+="<ul>";inList="ul";}
+      html+="<li>"+inlineMd(ulMatch[1])+"</li>";
+      continue;
+    }
+    /* Ordered list */
+    var olMatch=trimmed.match(/^\d+\.\s+(.*)/);
+    if(olMatch){
+      if(inQuote){html+="</blockquote>";inQuote=false;}
+      if(inList!=="ol"){if(inList)html+="</"+inList+">";html+="<ol>";inList="ol";}
+      html+="<li>"+inlineMd(olMatch[1])+"</li>";
+      continue;
+    }
+    if(inList){html+="</"+inList+">";inList=null;}
+    /* Quote */
+    var qMatch=trimmed.match(/^>\s?(.*)/);
+    if(qMatch){if(!inQuote){html+="<blockquote>";inQuote=true;}html+=inlineMd(qMatch[1])+"<br>";continue;}
+    if(inQuote){html+="</blockquote>";inQuote=false;}
+    html+="<p>"+inlineMd(trimmed)+"</p>";
+  }
+  if(inList)html+="</"+inList+">";
+  if(inQuote)html+="</blockquote>";
+  return html;
+}
+function inlineMd(text){
+  text=escapeHtml(text);
+  text=text.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
+  text=text.replace(/\*(.+?)\*/g,"<em>$1</em>");
+  text=text.replace(/`(.+?)`/g,"<code>$1</code>");
+  text=text.replace(/!\[([^\]]*)\]\((data:image[^)]+)\)/g,'<img src="$2" alt="$1">');
+  return text;
+}
+
+function getBranchDepth(node){
+  if(node.type!=="branch")return 0;
+  var depth=1;var current=getNode(node.parentId);
+  while(current&&current.type==="branch"){depth++;current=getNode(current.parentId);}
+  return depth;
+}
+function getBranchStyle(depth){return depth<=1?NODE_STYLE.branch1:NODE_STYLE.branch2;}
+function getNodeStyle(node){
+  if(node.type==="trunk")return NODE_STYLE.trunk;
+  if(node.type==="branch")return getBranchStyle(getBranchDepth(node));
+  return NODE_STYLE.leaf;
+}
+
+/* ---------- Viewport ---------- */
+function updateViewport(){viewportEl.setAttribute("transform","translate("+viewport.x+","+viewport.y+") scale("+viewport.scale+")");zoomIndicator.textContent=Math.round(viewport.scale*100)+"%";}
+
+/* ---------- Storage ---------- */
+function loadState(){
+  var raw=localStorage.getItem(STORAGE_KEY);
+  if(!raw){
+    /* Try to migrate from v2 */
+    var v2=localStorage.getItem("daoshu_data_v2");
+    if(v2){
+      try{
+        var d2=JSON.parse(v2);
+        var migrated=d2.nodes.map(function(n){
+          var node=Object.assign({},n,{vx:0,vy:0,fx:0,fy:0});
+          if(!node.associations)node.associations=[];
+          if(node.type==="leaf"){
+            if(!node.leafData)node.leafData=createLeafRichData();
+            node.contentType=node.contentType||"rich-text";
+            if(!node.mindmapData)node.mindmapData=defaultMindmap(node.title);
+            if(!node.tableData)node.tableData=defaultTableData();
+            if(!node.galleryData)node.galleryData=[];
+            if(!node.leafData.sourceText)node.leafData.sourceText="";
+            if(!node.leafData.sourceImages)node.leafData.sourceImages=[];
+          }
+          return node;
+        });
+        state.nodes=migrated;state.assocVersion++;
+        localStorage.setItem(STORAGE_KEY,JSON.stringify({nodes:migrated}));
+        return;
+      }catch(e){console.error("Migrate error:",e);}
+    }
+    return;
+  }
+  try{
+    var data=JSON.parse(raw);
+    state.nodes=(data.nodes||[]).map(function(n){
+      var node=Object.assign({},n,{vx:0,vy:0,fx:0,fy:0});
+      if(!node.associations)node.associations=[];
+      if(node.collapsed===undefined)node.collapsed=false;
+      if(node.type==="leaf"){
+        node.contentType=node.contentType||"rich-text";
+        if(!node.leafData)node.leafData=createLeafRichData();
+        if(node.contentType==="rich-text"&&!node.leafData.questionText)node.leafData=upgradeLeafRich(node.leafData);
+        if(node.leafData.contentHtml===undefined)node.leafData.contentHtml="";
+        if(!node.leafData.sourceText)node.leafData.sourceText="";
+        if(!node.leafData.sourceImages)node.leafData.sourceImages=[];
+        if(!node.mindmapData)node.mindmapData=defaultMindmap(node.title);
+        if(!node.tableData)node.tableData=defaultTableData();
+        if(!node.galleryData)node.galleryData=[];
+      }
+      return node;
+    });
+    state.assocVersion++;
+  }catch(e){console.error("Load error:",e);}
+}
+function saveState(){
+  var data={nodes:state.nodes.map(function(n){
+    var node={id:n.id,title:n.title,type:n.type,parentId:n.parentId,x:Math.round(n.x),y:Math.round(n.y),associations:n.associations||[]};
+    if(n.collapsed!==undefined)node.collapsed=n.collapsed;
+    if(n.type==="leaf"){
+      node.contentType=n.contentType||"rich-text";
+      node.leafData=n.leafData;
+      node.mindmapData=n.mindmapData;
+      node.tableData=n.tableData;
+      node.galleryData=n.galleryData;
+    }else{node.content=n.content||"";}
+    return node;
+  })};
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch(e){console.error("Save error:",e);}
+  scheduleSync();
+}
+
+/* ---------- Data creators ---------- */
+function createLeafRichData(){
+  return{questionText:"",insightText:"",applicationText:"",contentHtml:"",status:"待实践",notesText:"",sourceText:"",sourceImages:[]};
+}
+function upgradeLeafRich(ld){
+  return{
+    questionText:ld.question||"",
+    insightText:ld.insight||"",
+    applicationText:ld.application||"",
+    contentHtml:ld.contentHtml||"",
+    status:ld.status||"待实践",
+    notesText:ld.notes||"",
+    sourceText:"",
+    sourceImages:ld.imageData?[ld.imageData]:[]
+  };
+}
+function defaultMindmap(title){
+  return{id:genId(),text:title||"中心",children:[]};
+}
+function defaultTableData(){
+  return{columns:["列1","列2","列3"],rows:[["","",""],["","",""],["","",""],["","",""],["","",""]]};
+}
+
+/* ---------- Trunk path ---------- */
+function makeTrunkPath(x,y){
+  var baseHalfW=38,flareHalfW=46,topHalfW=12;
+  var baseY=y+105,flareY=y+92,topY=y-120;
+  return "M"+(x-flareHalfW)+","+baseY+
+    "Q"+(x-baseHalfW*0.95)+","+flareY+" "+(x-baseHalfW)+","+(y+65)+
+    "C"+(x-baseHalfW*1.12)+","+(y+20)+" "+(x-topHalfW*1.9)+","+(y-55)+" "+(x-topHalfW)+","+topY+
+    "L"+(x+topHalfW)+","+topY+
+    "C"+(x+topHalfW*1.9)+","+(y-55)+" "+(x+baseHalfW*1.12)+","+(y+20)+" "+(x+baseHalfW)+","+(y+65)+
+    "Q"+(x+baseHalfW*0.95)+","+flareY+" "+(x+flareHalfW)+","+baseY+"Z";
+}
+
+/* ---------- Branch path ---------- */
+function makeBranchPath(x1,y1,x2,y2,w1,w2){
+  var dx=x2-x1,dy=y2-y1;
+  var len=Math.sqrt(dx*dx+dy*dy);
+  if(len<0.1)len=0.1;
+  var px=-dy/len,py=dx/len;
+  var curveOff=len*0.05;
+  var mcx=(x1+x2)/2+px*curveOff,mcy=(y1+y2)/2+py*curveOff;
+  var avgW=(w1+w2)/2;
+  var lcx=mcx+px*avgW,lcy=mcy+py*avgW;
+  var rcx=mcx-px*avgW,rcy=mcy-py*avgW;
+  var lp1x=x1+px*w1,lp1y=y1+py*w1;
+  var lp2x=x2+px*w2,lp2y=y2+py*w2;
+  var rp1x=x1-px*w1,rp1y=y1-py*w1;
+  var rp2x=x2-px*w2,rp2y=y2-py*w2;
+  return "M"+lp1x+","+lp1y+"Q"+lcx+","+lcy+" "+lp2x+","+lp2y+"L"+rp2x+","+rp2y+"Q"+rcx+","+rcy+" "+rp1x+","+rp1y+"Z";
+}
+function getBranchWidths(parentNode,childNode){
+  if(parentNode.type==="trunk")return{w1:9,w2:5};
+  var pd=getBranchDepth(parentNode);
+  if(pd<=1)return{w1:5,w2:3};
+  return{w1:3,w2:1.5};
+}
+
+/* ---------- Simulation ---------- */
+function simulate(){
+  var nodes=state.nodes;
+  if(nodes.length===0){requestAnimationFrame(simulate);return;}
+  var W=canvasArea.clientWidth,H=canvasArea.clientHeight,cx=W/2,cy=H/2;
+  for(var i=0;i<nodes.length;i++){nodes[i].fx=0;nodes[i].fy=0;}
+  var repK=7000;
+  for(var a=0;a<nodes.length;a++){
+    if(!isNodeVisible(nodes[a].id))continue;
+    for(var b=a+1;b<nodes.length;b++){
+    if(!isNodeVisible(nodes[b].id))continue;
+    var na=nodes[a],nb=nodes[b];
+    var dx=na.x-nb.x,dy=na.y-nb.y,d2=dx*dx+dy*dy;
+    if(d2<1){d2=1;dx=(Math.random()-0.5)*2;dy=(Math.random()-0.5)*2;}
+    var d=Math.sqrt(d2),f=repK/d2,fxv=(dx/d)*f,fyv=(dy/d)*f;
+    na.fx+=fxv;na.fy+=fyv;nb.fx-=fxv;nb.fy-=fyv;
+  }}
+  var linkLen=125,springK=0.04;
+  for(var s=0;s<nodes.length;s++){
+    var n=nodes[s];if(!n.parentId)continue;
+    if(!isNodeVisible(n.id))continue;
+    var p=getNode(n.parentId);if(!p)continue;
+    var sdx=n.x-p.x,sdy=n.y-p.y,sd=Math.sqrt(sdx*sdx+sdy*sdy);
+    if(sd<1)sd=1;var sf=(sd-linkLen)*springK,sfx=(sdx/sd)*sf,sfy=(sdy/sd)*sf;
+    n.fx-=sfx;n.fy-=sfy;p.fx+=sfx;p.fy+=sfy;
+  }
+  for(var c=0;c<nodes.length;c++){
+    var cn=nodes[c];
+    if(!isNodeVisible(cn.id))continue;
+    if(cn.type==="trunk"){cn.fx+=(cx-cn.x)*0.06;cn.fy+=(cy-cn.y)*0.06;}
+    else{cn.fx+=(cx-cn.x)*0.003;cn.fy+=(cy-cn.y)*0.003;}
+  }
+  simAlpha=Math.max(simAlpha*0.998,0.02);
+  for(var u=0;u<nodes.length;u++){
+    var un=nodes[u];
+    if(!isNodeVisible(un.id))continue;
+    if(drag&&drag.id===un.id)continue;
+    if(un.type==="trunk"){un.x+=un.fx*0.15;un.y+=un.fy*0.15;}
+    else{un.vx=(un.vx+un.fx*0.5)*0.82;un.vy=(un.vy+un.fy*0.5)*0.82;un.x+=un.vx*simAlpha;un.y+=un.vy*simAlpha;}
+    var margin=(getNodeStyle(un).radius||16)+8;
+    if(un.x<margin)un.x=margin;if(un.x>W-margin)un.x=W-margin;
+    if(un.y<margin)un.y=margin;if(un.y>H-margin)un.y=H-margin;
+  }
+  render();
+  requestAnimationFrame(simulate);
+}
+
+/* ---------- Render Associations ---------- */
+function shouldShowAssoc(srcId,tgtId){
+  if(state.showAllAssoc)return true;
+  if(state.selectedId===srcId||state.selectedId===tgtId)return true;
+  return false;
+}
+function renderAssociations(t){
+  var needRecreate=lastAssocRenderVersion!==state.assocVersion||
+    lastShowAllAssoc!==state.showAllAssoc||
+    lastSelectedForAssoc!==state.selectedId;
+  if(needRecreate){
+    lastAssocRenderVersion=state.assocVersion;
+    lastShowAllAssoc=state.showAllAssoc;
+    lastSelectedForAssoc=state.selectedId;
+    while(assocsGroup.firstChild)assocsGroup.removeChild(assocsGroup.firstChild);
+    var drawn={};
+    for(var i=0;i<state.nodes.length;i++){
+      var n=state.nodes[i];
+      if(!n.associations||n.associations.length===0)continue;
+      for(var j=0;j<n.associations.length;j++){
+        var assoc=n.associations[j];
+        var target=getNode(assoc.targetId);
+        if(!target)continue;
+        if(!shouldShowAssoc(n.id,target.id))continue;
+        var key=n.id<target.id?n.id+"|"+target.id:target.id+"|"+n.id;
+        if(drawn[key])continue;drawn[key]=true;
+        var line=createEl("line");
+        line.setAttribute("x1",n.x);line.setAttribute("y1",n.y);
+        line.setAttribute("x2",target.x);line.setAttribute("y2",target.y);
+        line.setAttribute("class","assoc-line");
+        line.setAttribute("stroke","rgba(220,230,255,0.5)");
+        line.setAttribute("stroke-width","1.5");
+        line.setAttribute("stroke-dasharray","6 4");
+        line.setAttribute("stroke-linecap","round");
+        line.setAttribute("pointer-events","stroke");
+        line.setAttribute("data-source",n.id);
+        line.setAttribute("data-target",assoc.targetId);
+        line.setAttribute("data-label",assoc.label);
+        (function(el,srcId,tgtId,label){
+          el.addEventListener("mouseenter",function(e){
+            hoveringAssocLine=true;
+            el.setAttribute("stroke","rgba(220,230,255,1.0)");
+            el.setAttribute("stroke-width","2");
+            tooltip.style.display="block";
+            tooltip.innerHTML='<div class="tt-assoc"> '+escapeHtml(label)+"</div>";
+            tooltip.style.left=(e.clientX+16)+"px";
+            tooltip.style.top=(e.clientY+16)+"px";
+          });
+          el.addEventListener("mouseleave",function(){
+            hoveringAssocLine=false;
+            el.setAttribute("stroke","rgba(220,230,255,0.5)");
+            el.setAttribute("stroke-width","1.5");
+            tooltip.style.display="none";
+          });
+          el.addEventListener("mousemove",function(e){
+            tooltip.style.left=(e.clientX+16)+"px";
+            tooltip.style.top=(e.clientY+16)+"px";
+          });
+          el.addEventListener("click",function(e){
+            e.stopPropagation();
+            showLineMenu(e.clientX,e.clientY,srcId,tgtId,label);
+          });
+        })(line,n.id,assoc.targetId,assoc.label);
+        assocsGroup.appendChild(line);
+      }
+    }
+  }else{
+    for(var li=0;li<assocsGroup.children.length;li++){
+      var el=assocsGroup.children[li];
+      var src=getNode(el.getAttribute("data-source"));
+      var tgt=getNode(el.getAttribute("data-target"));
+      if(src&&tgt){
+        el.setAttribute("x1",src.x);el.setAttribute("y1",src.y);
+        el.setAttribute("x2",tgt.x);el.setAttribute("y2",tgt.y);
+      }
+    }
+  }
+}
+
+/* ---------- Render ---------- */
+function render(){
+  var t=Date.now()/1000;
+  renderAssociations(t);
+  while(linksGroup.firstChild)linksGroup.removeChild(linksGroup.firstChild);
+  while(nodesGroup.firstChild)nodesGroup.removeChild(nodesGroup.firstChild);
+
+  var trunkNode=getTrunk();
+  if(trunkNode){
+    var tp=makeTrunkPath(trunkNode.x,trunkNode.y);
+    var tGlow=createEl("path");
+    tGlow.setAttribute("d",tp);tGlow.setAttribute("fill","#e8d5a0");
+    var tBr=0.04+Math.sin(t/5*Math.PI*2)*0.03;
+    tGlow.setAttribute("opacity",tBr);tGlow.setAttribute("filter","url(#glow-strong)");
+    tGlow.setAttribute("pointer-events","none");linksGroup.appendChild(tGlow);
+    var tBody=createEl("path");
+    tBody.setAttribute("d",tp);tBody.setAttribute("fill","url(#trunk-grad)");
+    tBody.setAttribute("opacity","0.75");tBody.setAttribute("pointer-events","none");
+    linksGroup.appendChild(tBody);
+    var tLine=createEl("path");
+    tLine.setAttribute("d",tp);tLine.setAttribute("fill","none");
+    tLine.setAttribute("stroke","#e8d5a0");tLine.setAttribute("stroke-width","1");
+    tLine.setAttribute("opacity","0.35");tLine.setAttribute("pointer-events","none");
+    linksGroup.appendChild(tLine);
+  }
+
+  for(var li=0;li<state.nodes.length;li++){
+    var ln=state.nodes[li];
+    if(!ln.parentId)continue;
+    if(!isNodeVisible(ln.id))continue;
+    var lp=getNode(ln.parentId);if(!lp)continue;
+    var widths=getBranchWidths(lp,ln);
+    var childStyle=getNodeStyle(ln);
+    var bd=makeBranchPath(lp.x,lp.y,ln.x,ln.y,widths.w1,widths.w2);
+    var bGlow=createEl("path");
+    bGlow.setAttribute("d",bd);bGlow.setAttribute("fill",childStyle.glow);
+    bGlow.setAttribute("opacity","0.06");bGlow.setAttribute("filter","url(#glow-soft)");
+    bGlow.setAttribute("pointer-events","none");linksGroup.appendChild(bGlow);
+    var bFill=createEl("path");
+    bFill.setAttribute("d",bd);bFill.setAttribute("fill",childStyle.stroke);
+    bFill.setAttribute("opacity","0.28");bFill.setAttribute("pointer-events","none");
+    linksGroup.appendChild(bFill);
+    var bStroke=createEl("path");
+    bStroke.setAttribute("d",bd);bStroke.setAttribute("fill","none");
+    bStroke.setAttribute("stroke",childStyle.stroke);bStroke.setAttribute("stroke-width","0.8");
+    bStroke.setAttribute("opacity","0.4");bStroke.setAttribute("pointer-events","none");
+    linksGroup.appendChild(bStroke);
+  }
+
+  var flashElapsed=state.flashingNode?Date.now()-state.flashStart:999;
+  if(flashElapsed>800)state.flashingNode=null;
+  var flashIntensity=state.flashingNode?Math.sin((flashElapsed/800)*Math.PI):0;
+
+  for(var ni=0;ni<state.nodes.length;ni++){
+    var n=state.nodes[ni];
+    if(!isNodeVisible(n.id))continue;
+    var st=getNodeStyle(n);
+    var selected=n.id===state.selectedId;
+    var isAssocSrc=state.assocMode&&state.assocStart===n.id;
+    var isDropTarget=dragTransferTarget===n.id&&drag&&drag.type==="branch"&&n.type==="branch"&&drag.id!==n.id;
+    var phase=hashId(n.id)*Math.PI*2;
+    var breath=(Math.sin((t/st.breathPeriod)*Math.PI*2+phase)+1)/2;
+
+    var ss={fillOp:0.1,strokeOp:0.6,glowMult:1,breathMult:1,textOp:0.85};
+    if(n.type==="leaf"&&n.leafData){
+      var tmp=LEAF_STATUS_STYLE[n.leafData.status];
+      if(tmp)ss=tmp;
+    }
+
+    if(isAssocSrc){
+      st={radius:st.radius,fill:"rgba(180,140,220,0.12)",stroke:"#b48cd8",glow:"#b48cd8",text:"#c8a0e0",fontSize:st.fontSize,breathBase:st.breathBase,breathAmp:st.breathAmp,breathPeriod:st.breathPeriod};
+    }
+
+    var g=createEl("g");
+    g.setAttribute("class","node-group"+(isDropTarget?" branch-drop-target":""));
+    g.setAttribute("transform","translate("+n.x+","+n.y+")");
+    g.setAttribute("data-id",n.id);
+    g.setAttribute("data-type",n.type);
+
+    if(n.type==="leaf"){
+      var breathVal=breath*ss.breathMult;
+      var flashGlow=state.flashingNode===n.id?flashIntensity*0.3:0;
+      var lGlow=createEl("path");
+      lGlow.setAttribute("d",LEAF_PATH);lGlow.setAttribute("fill",st.glow);
+      lGlow.setAttribute("opacity",(st.breathBase+breathVal*st.breathAmp)*ss.glowMult*3+flashGlow);
+      lGlow.setAttribute("filter","url(#glow-leaf)");lGlow.setAttribute("pointer-events","none");
+      g.appendChild(lGlow);
+      if(selected){
+        var lRing=createEl("circle");
+        lRing.setAttribute("r",st.radius+5);lRing.setAttribute("fill","none");
+        lRing.setAttribute("stroke",st.stroke);lRing.setAttribute("stroke-width","1");
+        lRing.setAttribute("opacity","0.35");lRing.setAttribute("stroke-dasharray","3 3");
+        lRing.setAttribute("pointer-events","none");g.appendChild(lRing);
+      }
+      var lBody=createEl("path");
+      lBody.setAttribute("d",LEAF_PATH);lBody.setAttribute("fill",st.fill);
+      lBody.setAttribute("fill-opacity",ss.fillOp);lBody.setAttribute("stroke",st.stroke);
+      lBody.setAttribute("stroke-width",selected?"1.5":"1.2");
+      lBody.setAttribute("stroke-opacity",ss.strokeOp);
+      g.appendChild(lBody);
+      var lVein=createEl("path");
+      lVein.setAttribute("d",LEAF_VEIN);lVein.setAttribute("stroke",st.stroke);
+      lVein.setAttribute("stroke-width","0.6");lVein.setAttribute("opacity",ss.strokeOp*0.5);
+      lVein.setAttribute("fill","none");lVein.setAttribute("pointer-events","none");
+      g.appendChild(lVein);
+      /* Content type icon */
+      if(n.contentType){
+        var ctColor=CONTENT_TYPE_COLORS[n.contentType]||"#888";
+        var ctDot=createEl("circle");
+        ctDot.setAttribute("r","3.5");ctDot.setAttribute("fill",ctColor);
+        ctDot.setAttribute("opacity",ss.textOp*0.7);
+        ctDot.setAttribute("cx","10");ctDot.setAttribute("cy","-6");
+        ctDot.setAttribute("pointer-events","none");
+        g.appendChild(ctDot);
+      }
+      var dotColor={"待实践":"#555","已实践":"#4dd0e1","已在用":"#a5d6a7"};
+      var lDot=createEl("circle");
+      lDot.setAttribute("r","2.5");
+      lDot.setAttribute("fill",dotColor[n.leafData?n.leafData.status:"待实践"]||"#555");
+      lDot.setAttribute("opacity",ss.textOp*0.8);
+      lDot.setAttribute("cy","8");
+      lDot.setAttribute("pointer-events","none");
+      g.appendChild(lDot);
+      var lText=createEl("text");
+      lText.setAttribute("text-anchor","middle");lText.setAttribute("dominant-baseline","central");
+      lText.setAttribute("fill",st.text);lText.setAttribute("font-size",st.fontSize);
+      lText.setAttribute("font-weight","600");lText.setAttribute("font-family","sans-serif");
+      lText.setAttribute("pointer-events","none");lText.setAttribute("opacity",ss.textOp);
+      var lLabel=n.title||"";
+      if(lLabel.length>2)lLabel=lLabel.slice(0,2)+"…";
+      lText.textContent=lLabel;
+      g.appendChild(lText);
+    }else{
+      var flashGlow2=state.flashingNode===n.id?flashIntensity*0.15:0;
+      var glowConfigs=n.type==="trunk"?[
+        {r:2.2,opacity:0.06+flashGlow2,filter:"glow-strong"},
+        {r:1.4,opacity:0.09+flashGlow2,filter:"glow-medium"},
+      ]:[
+        {r:2.0,opacity:0.05+flashGlow2,filter:"glow-medium"},
+        {r:1.3,opacity:0.08+flashGlow2,filter:"glow-soft"},
+      ];
+      for(var gi=0;gi<glowConfigs.length;gi++){
+        var layer=glowConfigs[gi];
+        var glowC=createEl("circle");
+        glowC.setAttribute("r",st.radius*layer.r);glowC.setAttribute("fill",st.glow);
+        var lop=(st.breathBase+breath*st.breathAmp)*layer.opacity*7;
+        glowC.setAttribute("opacity",Math.min(lop,0.4));
+        glowC.setAttribute("filter","url(#"+layer.filter+")");
+        glowC.setAttribute("pointer-events","none");g.appendChild(glowC);
+      }
+      if(selected){
+        var ring=createEl("circle");
+        ring.setAttribute("r",st.radius+6);ring.setAttribute("fill","none");
+        ring.setAttribute("stroke",st.stroke);ring.setAttribute("stroke-width","1");
+        ring.setAttribute("opacity","0.4");ring.setAttribute("stroke-dasharray","4 4");
+        ring.setAttribute("pointer-events","none");g.appendChild(ring);
+      }
+      var circle=createEl("circle");
+      circle.setAttribute("r",st.radius);circle.setAttribute("fill",st.fill);
+      circle.setAttribute("stroke",st.stroke);
+      circle.setAttribute("stroke-width",selected?"2":"1.2");
+      circle.setAttribute("opacity","0.85");
+      g.appendChild(circle);
+      var text=createEl("text");
+      text.setAttribute("text-anchor","middle");text.setAttribute("dominant-baseline","central");
+      text.setAttribute("fill",st.text);text.setAttribute("font-size",st.fontSize);
+      text.setAttribute("font-weight","bold");text.setAttribute("font-family","sans-serif");
+      text.setAttribute("pointer-events","none");text.setAttribute("opacity","0.9");
+      var label=n.title||"";
+      var maxLen=n.type==="trunk"?4:5;
+      if(label.length>maxLen)label=label.slice(0,maxLen)+"…";
+      text.textContent=label;
+      g.appendChild(text);
+      if(n.collapsed){
+        var childCount=getChildren(n.id).length;
+        if(childCount>0){
+          var collapseBadge=createEl("circle");
+          collapseBadge.setAttribute("r","7");
+          collapseBadge.setAttribute("cx",st.radius-2);
+          collapseBadge.setAttribute("cy",-(st.radius-4));
+          collapseBadge.setAttribute("fill","rgba(20,50,70,0.9)");
+          collapseBadge.setAttribute("stroke",st.stroke);
+          collapseBadge.setAttribute("stroke-width","1");
+          collapseBadge.setAttribute("opacity","0.85");
+          collapseBadge.setAttribute("pointer-events","none");
+          g.appendChild(collapseBadge);
+          var collapseText=createEl("text");
+          collapseText.setAttribute("text-anchor","middle");
+          collapseText.setAttribute("dominant-baseline","central");
+          collapseText.setAttribute("x",st.radius-2);
+          collapseText.setAttribute("y",-(st.radius-4));
+          collapseText.setAttribute("fill",st.text);
+          collapseText.setAttribute("font-size","9");
+          collapseText.setAttribute("font-weight","bold");
+          collapseText.setAttribute("font-family","sans-serif");
+          collapseText.setAttribute("pointer-events","none");
+          collapseText.textContent="+"+childCount;
+          g.appendChild(collapseText);
+        }
+      }
+    }
+    nodesGroup.appendChild(g);
+  }
+}
+
+/* ---------- Detail Panel Renderers ---------- */
+function updateDetailPanel(){
+  var node=state.selectedId?getNode(state.selectedId):null;
+  if(!node){
+    detailEmpty.style.display="flex";detailContent.style.display="none";
+    btnAddLeaf.disabled=true;return;
+  }
+  detailEmpty.style.display="none";detailContent.style.display="flex";
+  detailType.textContent=TYPE_LABELS[node.type];
+  detailType.className="detail-type-tag "+node.type;
+  detailTitle.value=node.title||"";
+
+  contentFieldsEl.innerHTML="";
+
+  if(node.type==="leaf"){
+    /* Content type selector */
+    var ctRow=document.createElement("div");
+    ctRow.className="content-type-row";
+    var ctLabel=document.createElement("div");
+    ctLabel.className="content-type-label";
+    ctLabel.textContent="内容类型";
+    var ctSelect=document.createElement("select");
+    ctSelect.className="content-type-select";
+    for(var ci=0;ci<CONTENT_TYPES.length;ci++){
+      var opt=document.createElement("option");
+      opt.value=CONTENT_TYPES[ci];opt.textContent=CONTENT_TYPE_LABELS[CONTENT_TYPES[ci]];
+      if(node.contentType===CONTENT_TYPES[ci])opt.selected=true;
+      ctSelect.appendChild(opt);
+    }
+    ctSelect.addEventListener("change",function(){
+      node.contentType=ctSelect.value;saveState();updateDetailPanel();state.assocVersion++;
+    });
+    ctRow.appendChild(ctLabel);ctRow.appendChild(ctSelect);
+    contentFieldsEl.appendChild(ctRow);
+
+    if(node.contentType==="rich-text"){
+      renderRichTextEditor(node);
+    }else if(node.contentType==="mindmap"){
+      renderMindmapEditor(node);
+    }else if(node.contentType==="table"){
+      renderTableEditor(node);
+    }else if(node.contentType==="gallery"){
+      renderGalleryEditor(node);
+    }
+  }else{
+    /* Non-leaf content */
+    var field=document.createElement("div");
+    field.className="rt-field";
+    var header=document.createElement("div");
+    header.className="rt-field-header";
+    var label=document.createElement("div");
+    label.className="rt-field-label";label.textContent="内容";
+    header.appendChild(label);
+    field.appendChild(header);
+    var ta=document.createElement("textarea");
+    ta.className="rt-textarea";ta.placeholder="详细内容...";
+    ta.value=node.content||"";
+    ta.style.minHeight="120px";
+    ta.addEventListener("input",function(){node.content=ta.value;saveState();});
+    field.appendChild(ta);
+    contentFieldsEl.appendChild(field);
+  }
+
+  /* Association section */
+  updateAssocSection(node);
+
+  /* Footer buttons */
+  if(node.type==="trunk"){
+    detailAddBtn.style.display="";
+    detailAddSubBtn.style.display="none";
+    detailAddLeafBtn.style.display="none";
+    detailAddBtn.textContent="添加支干";
+    btnAddLeaf.disabled=true;
+    detailDeleteBtn.style.display="none";
+  }else if(node.type==="branch"){
+    detailAddBtn.style.display="none";
+    detailAddSubBtn.style.display="";
+    detailAddLeafBtn.style.display="";
+    btnAddLeaf.disabled=false;
+    detailDeleteBtn.style.display="";
+  }else{
+    detailAddBtn.style.display="none";
+    detailAddSubBtn.style.display="none";
+    detailAddLeafBtn.style.display="none";
+    btnAddLeaf.disabled=true;
+    detailDeleteBtn.style.display="";
+  }
+}
+
+function updateAssocSection(node){
+  node=node||(state.selectedId?getNode(state.selectedId):null);
+  if(!node){assocSection.style.display="none";return;}
+  var allAssoc=getAllAssociations(node.id);
+  if(allAssoc.length===0){assocSection.style.display="none";return;}
+  assocSection.style.display="";
+  assocList.innerHTML="";
+  for(var i=0;i<allAssoc.length;i++){
+    var a=allAssoc[i];
+    var otherId=a.direction==="out"?a.targetId:a.sourceId;
+    var otherNode=getNode(otherId);
+    if(!otherNode)continue;
+    var item=document.createElement("div");
+    item.className="assoc-item";
+    var arrow=document.createElement("span");
+    arrow.className="assoc-arrow";
+    arrow.textContent=a.direction==="out"?"→":"←";
+    var title=document.createElement("span");
+    title.className="assoc-title";
+    title.textContent=otherNode.title||"未命名";
+    var label=document.createElement("span");
+    label.className="assoc-label";
+    label.textContent=a.label;
+    item.appendChild(arrow);item.appendChild(title);item.appendChild(label);
+    (function(tid){item.addEventListener("click",function(){navigateToNode(tid);});})(otherId);
+    assocList.appendChild(item);
+  }
+}
+
+function getAllAssociations(nodeId){
+  var result=[];
+  var node=getNode(nodeId);
+  if(node&&node.associations){
+    for(var i=0;i<node.associations.length;i++){
+      result.push({direction:"out",targetId:node.associations[i].targetId,label:node.associations[i].label});
+    }
+  }
+  for(var j=0;j<state.nodes.length;j++){
+    var n=state.nodes[j];
+    if(n.associations){
+      for(var k=0;k<n.associations.length;k++){
+        if(n.associations[k].targetId===nodeId){
+          result.push({direction:"in",sourceId:n.id,label:n.associations[k].label});
+        }
+      }
+    }
+  }
+  return result;
+}
+
+/* ---------- Rich Text Editor ---------- */
+var RICH_FIELDS=[
+  {key:"questionText",label:"问题",placeholder:"待思考的问题..."},
+  {key:"insightText",label:"领悟",placeholder:"从中领悟到什么..."},
+  {key:"applicationText",label:"应用",placeholder:"如何应用..."},
+  {key:"contentHtml",label:"内容",placeholder:"在此输入内容...支持文字和直接粘贴图片",isContentField:true},
+  {key:"notesText",label:"备注",placeholder:"补充说明..."},
+];
+function renderRichTextEditor(node){
+  /* Status row */
+  var statusRow=document.createElement("div");
+  statusRow.className="rt-status-row";
+  var sl=document.createElement("div");
+  sl.className="rt-status-label";sl.textContent="状态";
+  var ss=document.createElement("select");
+  ss.className="rt-status-select";
+  ["待实践","已实践","已在用"].forEach(function(s){
+    var o=document.createElement("option");o.value=s;o.textContent=s;
+    if(node.leafData.status===s)o.selected=true;
+    ss.appendChild(o);
+  });
+  ss.addEventListener("change",function(){node.leafData.status=ss.value;saveState();state.assocVersion++;});
+  statusRow.appendChild(sl);statusRow.appendChild(ss);
+  contentFieldsEl.appendChild(statusRow);
+
+  /* Preview toggle */
+  var pt=document.createElement("div");
+  pt.className="preview-toggle";
+  var btnEdit=document.createElement("button");
+  btnEdit.textContent="编辑";btnEdit.className=!previewMode?"active":"";
+  var btnPrev=document.createElement("button");
+  btnPrev.textContent="预览";btnPrev.className=previewMode?"active":"";
+  btnEdit.addEventListener("click",function(){previewMode=false;updateDetailPanel();});
+  btnPrev.addEventListener("click",function(){previewMode=true;updateDetailPanel();});
+  pt.appendChild(btnEdit);pt.appendChild(btnPrev);
+  contentFieldsEl.appendChild(pt);
+
+  /* Fields */
+  for(var fi=0;fi<RICH_FIELDS.length;fi++){
+    (function(f){
+      var field=document.createElement("div");
+      field.className="rt-field";
+      var header=document.createElement("div");
+      header.className="rt-field-header";
+      var label=document.createElement("div");
+      label.className="rt-field-label";label.textContent=f.label;
+      header.appendChild(label);
+
+      if(!previewMode){
+        var toolbar=document.createElement("div");
+        toolbar.className="rt-toolbar";
+        var btns=[
+          {icon:"B",title:"加粗",wrap:"**"},
+          {icon:"I",title:"斜体",wrap:"*"},
+          {icon:"•",title:"列表",prefix:"- "},
+          {icon:"1.",title:"有序列表",prefix:"1. "},
+          {icon:">",title:"引用",prefix:"> "},
+        ];
+        btns.forEach(function(b){
+          var btn=document.createElement("button");
+          btn.textContent=b.icon;btn.title=b.title;
+          btn.addEventListener("mousedown",function(e){e.preventDefault();});
+          btn.addEventListener("click",function(){
+            var ta=field.querySelector(".rt-textarea");
+            var start=ta.selectionStart,end=ta.selectionEnd;
+            var val=ta.value,selected=val.substring(start,end);
+            var replacement;
+            if(b.wrap){
+              replacement=b.wrap+selected+b.wrap;
+            }else{
+              var before=val.substring(0,start);
+              var lineStart=before.lastIndexOf("\n")+1;
+              replacement=b.prefix+val.substring(lineStart,end);
+              ta.value=val.substring(0,lineStart)+replacement+val.substring(end);
+              ta.selectionStart=ta.selectionEnd=lineStart+replacement.length;
+              return;
+            }
+            ta.value=val.substring(0,start)+replacement+val.substring(end);
+            ta.selectionStart=start+b.wrap.length;
+            ta.selectionEnd=end+b.wrap.length;
+            ta.focus();
+            node.leafData[f.key]=ta.value;saveState();
+          });
+          toolbar.appendChild(btn);
+        });
+        var imgBtn=document.createElement("button");
+        imgBtn.textContent="🖼";imgBtn.title="插入图片";
+        imgBtn.addEventListener("mousedown",function(e){e.preventDefault();});
+        imgBtn.addEventListener("click",function(){
+          var input=document.createElement("input");
+          input.type="file";input.accept="image/*";
+          input.addEventListener("change",function(){
+            var file=input.files[0];if(!file)return;
+            compressImage(file,function(dataUrl){
+              var ta=field.querySelector(".rt-textarea");
+              var md="![]("+dataUrl+")";
+              var start=ta.selectionStart;
+              ta.value=ta.value.substring(0,start)+md+ta.value.substring(ta.selectionEnd);
+              ta.selectionStart=ta.selectionEnd=start+md.length;
+              ta.focus();
+              node.leafData[f.key]=ta.value;saveState();
+            });
+          });
+          input.click();
+        });
+        toolbar.appendChild(imgBtn);
+        header.appendChild(toolbar);
+      }
+      /* Content field gets a "view details" button */
+      if(f.isContentField&&!previewMode){
+        var viewBtn=document.createElement("button");
+        viewBtn.className="content-field-view-btn";viewBtn.textContent="查看详情";
+        viewBtn.addEventListener("mousedown",function(e){e.preventDefault();});
+        viewBtn.addEventListener("click",function(){
+          openContentViewer(node,f);
+        });
+        header.appendChild(viewBtn);
+      }
+      field.appendChild(header);
+
+      if(f.isContentField){
+        /* Content field uses contentEditable for rich editing + image paste */
+        if(previewMode){
+          var cPrev=document.createElement("div");
+          cPrev.className="rt-preview";
+          cPrev.innerHTML=node.leafData[f.key]||"<em style='color:rgba(100,130,170,0.3)'>"+f.placeholder+"</em>";
+          var cImgs=cPrev.querySelectorAll("img");
+          for(var ci=0;ci<cImgs.length;ci++){
+            (function(img){img.addEventListener("click",function(){showLightbox(img.src);});})(cImgs[ci]);
+          }
+          field.appendChild(cPrev);
+        }else{
+          var cEdit=document.createElement("div");
+          cEdit.className="content-field-editor";
+          cEdit.contentEditable="true";
+          cEdit.innerHTML=node.leafData[f.key]||"";
+          /* Handle paste events for images */
+          cEdit.addEventListener("paste",function(ev){
+            handleContentPaste(ev,cEdit,node,f);
+          });
+          /* Auto-save on input */
+          var cSaveTimer=null;
+          cEdit.addEventListener("input",function(){
+            if(cSaveTimer)clearTimeout(cSaveTimer);
+            cSaveTimer=setTimeout(function(){
+              node.leafData[f.key]=cEdit.innerHTML;saveState();
+            },500);
+          });
+          field.appendChild(cEdit);
+        }
+      }else if(previewMode){
+        var prev=document.createElement("div");
+        prev.className="rt-preview";
+        prev.innerHTML=parseMarkdown(node.leafData[f.key]||f.placeholder);
+        /* Image click to lightbox */
+        var imgs=prev.querySelectorAll("img");
+        for(var ii=0;ii<imgs.length;ii++){
+          (function(img){img.addEventListener("click",function(){showLightbox(img.src);});})(imgs[ii]);
+        }
+        field.appendChild(prev);
+      }else{
+        var ta=document.createElement("textarea");
+        ta.className="rt-textarea";ta.placeholder=f.placeholder;
+        ta.value=node.leafData[f.key]||"";
+        ta.addEventListener("input",function(){node.leafData[f.key]=ta.value;saveState();});
+        field.appendChild(ta);
+      }
+      contentFieldsEl.appendChild(field);
+    })(RICH_FIELDS[fi]);
+  }
+
+  /* Source section */
+  var srcSection=document.createElement("div");
+  srcSection.className="source-section";
+  var srcLabel=document.createElement("div");
+  srcLabel.className="rt-field-label";srcLabel.textContent="来源";
+  srcSection.appendChild(srcLabel);
+
+  if(!previewMode){
+    var srcTa=document.createElement("textarea");
+    srcTa.className="rt-textarea";srcTa.placeholder="来源信息、引用出处...";
+    srcTa.style.minHeight="60px";
+    srcTa.value=node.leafData.sourceText||"";
+    srcTa.addEventListener("input",function(){node.leafData.sourceText=srcTa.value;saveState();});
+    srcSection.appendChild(srcTa);
+
+    var srcImgsDiv=document.createElement("div");
+    srcImgsDiv.className="source-images";
+    (node.leafData.sourceImages||[]).forEach(function(imgData,idx){
+      var item=document.createElement("div");
+      item.className="source-img-item";
+      var img=document.createElement("img");img.src=imgData;
+      var rm=document.createElement("button");
+      rm.className="remove-src";rm.textContent="×";
+      rm.addEventListener("click",function(){
+        node.leafData.sourceImages.splice(idx,1);saveState();updateDetailPanel();
+      });
+      item.appendChild(img);item.appendChild(rm);
+      item.addEventListener("click",function(){showLightbox(imgData);});
+      srcImgsDiv.appendChild(item);
+    });
+    var addBtn=document.createElement("div");
+    addBtn.className="source-img-item";
+    addBtn.style.cursor="pointer";
+    addBtn.style.background="rgba(12,20,38,0.5)";
+    addBtn.style.display="flex";
+    addBtn.style.alignItems="center";
+    addBtn.style.justifyContent="center";
+    addBtn.innerHTML='<span style="position:absolute;font-size:24px;color:rgba(100,140,180,0.4);">+</span>';
+    addBtn.addEventListener("click",function(){
+      var input=document.createElement("input");
+      input.type="file";input.accept="image/*";
+      input.addEventListener("change",function(){
+        var file=input.files[0];if(!file)return;
+        compressImage(file,function(dataUrl){
+          if(!node.leafData.sourceImages)node.leafData.sourceImages=[];
+          node.leafData.sourceImages.push(dataUrl);
+          saveState();updateDetailPanel();
+        });
+      });
+      input.click();
+    });
+    srcImgsDiv.appendChild(addBtn);
+    srcSection.appendChild(srcImgsDiv);
+  }else{
+    if(node.leafData.sourceText){
+      var srcPrev=document.createElement("div");
+      srcPrev.className="rt-preview";
+      srcPrev.style.fontSize="12px";
+      srcPrev.innerHTML=parseMarkdown(node.leafData.sourceText);
+      srcSection.appendChild(srcPrev);
+    }
+    if(node.leafData.sourceImages&&node.leafData.sourceImages.length>0){
+      var srcImgsPrev=document.createElement("div");
+      srcImgsPrev.className="source-images";
+      node.leafData.sourceImages.forEach(function(imgData){
+        var item=document.createElement("div");
+        item.className="source-img-item";
+        item.style.cursor="zoom-in";
+        var img=document.createElement("img");img.src=imgData;
+        item.appendChild(img);
+        item.addEventListener("click",function(){showLightbox(imgData);});
+        srcImgsPrev.appendChild(item);
+      });
+      srcSection.appendChild(srcImgsPrev);
+    }
+  }
+  contentFieldsEl.appendChild(srcSection);
+}
+
+/* ---------- Mindmap Editor ---------- */
+function renderMindmapEditor(node){
+  var importRow=document.createElement("div");
+  importRow.className="mm-import-row";
+  var importBtn=document.createElement("button");
+  importBtn.textContent="导入思维导图";
+  importBtn.className="mm-import-btn";
+  importBtn.addEventListener("click",function(){
+    var input=document.createElement("input");
+    input.type="file";
+    input.accept=".posf,.pos,.mm,.json,.xml,.xmind,.mmap,.txt,.csv,.html,.htm";
+    input.addEventListener("change",function(){
+      var file=input.files[0];if(!file)return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var content=e.target.result;
+        var parsed=parseMindmapFile(content,file.name);
+        if(parsed){
+          node.mindmapData=parsed;
+          saveState();updateDetailPanel();
+        }else{
+          alert("无法解析此文件格式。支持：ProcessOn(.posf)、FreeMind(.mm)、JSON、XMind(.json导出)、CSV/TSV、HTML大纲。");
+        }
+      };
+      reader.readAsText(file);
+    });
+    input.click();
+  });
+  importRow.appendChild(importBtn);
+  contentFieldsEl.appendChild(importRow);
+
+  var container=document.createElement("div");
+  container.className="mindmap-editor";
+  var mmSvg=document.createElementNS(SVG_NS,"svg");
+  mmSvg.setAttribute("width","100%");mmSvg.setAttribute("height","100%");
+  container.appendChild(mmSvg);
+  contentFieldsEl.appendChild(container);
+
+  function drawMindmap(){
+    while(mmSvg.firstChild)mmSvg.removeChild(mmSvg.firstChild);
+    var rect=container.getBoundingClientRect();
+    var w=rect.width,h=rect.height;
+    mmSvg.setAttribute("viewBox","0 0 "+w+" "+h);
+
+    if(!node.mindmapData)node.mindmapData=defaultMindmap(node.title);
+
+    /* Compute layout */
+    var positions={};
+    var levelHeight=45;
+    var mmCenter={x:w/2,y:h/2};
+
+    function layoutRadial(nodeData,angle,spread,dist,level){
+      var x=mmCenter.x+Math.cos(angle)*dist;
+      var y=mmCenter.y+Math.sin(angle)*dist;
+      positions[nodeData.id]={x:x,y:y,level:level,text:nodeData.text};
+      var children=nodeData.children||[];
+      if(children.length===0)return;
+      var childDist=dist+levelHeight;
+      var childSpread=children.length===1?0:Math.min(spread,Math.PI*0.7);
+      var startAngle=angle-childSpread/2;
+      var step=children.length===1?0:childSpread/(children.length-1);
+      for(var i=0;i<children.length;i++){
+        var childAngle=startAngle+step*i;
+        layoutRadial(children[i],childAngle,spread*0.55,childDist,level+1);
+      }
+    }
+    layoutRadial(node.mindmapData,0,Math.PI*1.7,0,0);
+
+    /* Draw lines first */
+    function drawLines(nodeData){
+      var pos=positions[nodeData.id];
+      var children=nodeData.children||[];
+      for(var i=0;i<children.length;i++){
+        var cpos=positions[children[i].id];
+        if(!cpos)continue;
+        var line=document.createElementNS(SVG_NS,"path");
+        var mx=(pos.x+cpos.x)/2;
+        var my=(pos.y+cpos.y)/2;
+        var dx=cpos.x-pos.x,dy=cpos.y-pos.y;
+        var len=Math.sqrt(dx*dx+dy*dy)||1;
+        var px=-dy/len,py=dx/len;
+        var d="M"+pos.x+","+pos.y+"Q"+(mx+px*8)+","+(my+py*8)+" "+cpos.x+","+cpos.y;
+        line.setAttribute("d",d);
+        line.setAttribute("fill","none");
+        var colors=["#4dd0e1","#80deea","#b2ebf2","#d4f1f4"];
+        line.setAttribute("stroke",colors[Math.min(children[i]._level||1,3)]);
+        line.setAttribute("stroke-width","1");
+        line.setAttribute("opacity","0.3");
+        mmSvg.appendChild(line);
+        drawLines(children[i]);
+      }
+    }
+    /* Mark levels */
+    function markLevels(nodeData,level){
+      nodeData._level=level;
+      var children=nodeData.children||[];
+      for(var i=0;i<children.length;i++)markLevels(children[i],level+1);
+    }
+    markLevels(node.mindmapData,0);
+    drawLines(node.mindmapData);
+
+    /* Draw nodes */
+    function drawNodes(nodeData){
+      var pos=positions[nodeData.id];
+      if(!pos)return;
+      var level=nodeData._level||0;
+      var colors=["#e8d5a0","#4dd0e1","#80deea","#b2ebf2"];
+      var color=colors[Math.min(level,3)];
+      var radii=[22,16,13,11];
+      var r=radii[Math.min(level,3)];
+
+      var g=document.createElementNS(SVG_NS,"g");
+      g.setAttribute("transform","translate("+pos.x+","+pos.y+")");
+      g.setAttribute("class","mm-node");
+      g.setAttribute("data-mmid",nodeData.id);
+
+      var glow=document.createElementNS(SVG_NS,"circle");
+      glow.setAttribute("r",r*1.8);glow.setAttribute("fill",color);
+      glow.setAttribute("opacity","0.1");glow.setAttribute("filter","url(#glow-soft)");
+      g.appendChild(glow);
+
+      var circle=document.createElementNS(SVG_NS,"circle");
+      circle.setAttribute("r",r);circle.setAttribute("fill","rgba(12,20,38,0.8)");
+      circle.setAttribute("stroke",color);circle.setAttribute("stroke-width","1");
+      circle.setAttribute("opacity","0.9");
+      g.appendChild(circle);
+
+      var text=document.createElementNS(SVG_NS,"text");
+      text.setAttribute("text-anchor","middle");text.setAttribute("dominant-baseline","central");
+      text.setAttribute("fill",color);text.setAttribute("font-size",level===0?"11":"9");
+      text.setAttribute("font-family","sans-serif");text.setAttribute("font-weight","500");
+      var txt=nodeData.text||"";
+      var maxChars=level===0?6:level===1?4:3;
+      if(txt.length>maxChars)txt=txt.slice(0,maxChars)+"…";
+      text.textContent=txt;
+      g.appendChild(text);
+
+      g.addEventListener("dblclick",function(e){
+        e.stopPropagation();
+        var newText=prompt("编辑节点文字:",nodeData.text||"");
+        if(newText!==null){nodeData.text=newText.trim();saveState();drawMindmap();}
+      });
+      g.addEventListener("contextmenu",function(e){
+        e.preventDefault();e.stopPropagation();
+        showMindmapCtxMenu(e.clientX,e.clientY,nodeData,node,drawMindmap);
+      });
+      g.addEventListener("click",function(e){e.stopPropagation();});
+
+      mmSvg.appendChild(g);
+      var children=nodeData.children||[];
+      for(var i=0;i<children.length;i++)drawNodes(children[i]);
+    }
+    drawNodes(node.mindmapData);
+  }
+
+  setTimeout(drawMindmap,50);
+  var ro=new ResizeObserver(function(){drawMindmap();});
+  ro.observe(container);
+}
+
+function showMindmapCtxMenu(x,y,mmNode,leafNode,redraw){
+  ctxMenu.innerHTML="";
+  var addChild=document.createElement("button");
+  addChild.textContent="添加子节点";
+  addChild.addEventListener("click",function(){
+    if(!mmNode.children)mmNode.children=[];
+    var newNode={id:genId(),text:"新节点",children:[]};
+    mmNode.children.push(newNode);
+    saveState();redraw();
+    ctxMenu.style.display="none";
+  });
+  ctxMenu.appendChild(addChild);
+
+  if(mmNode!==leafNode.mindmapData){
+    var addSib=document.createElement("button");
+    addSib.textContent="添加兄弟节点";
+    addSib.addEventListener("click",function(){
+      var parent=findMindmapParent(leafNode.mindmapData,mmNode.id);
+      if(parent){
+        if(!parent.children)parent.children=[];
+        parent.children.push({id:genId(),text:"新节点",children:[]});
+        saveState();redraw();
+      }
+      ctxMenu.style.display="none";
+    });
+    ctxMenu.appendChild(addSib);
+
+    ctxMenu.appendChild(document.createElement("hr"));
+
+    var delBtn=document.createElement("button");
+    delBtn.textContent="删除节点";delBtn.className="danger";
+    delBtn.addEventListener("click",function(){
+      var parent=findMindmapParent(leafNode.mindmapData,mmNode.id);
+      if(parent&&parent.children){
+        parent.children=parent.children.filter(function(c){return c.id!==mmNode.id;});
+        saveState();redraw();
+      }
+      ctxMenu.style.display="none";
+    });
+    ctxMenu.appendChild(delBtn);
+  }
+
+  ctxMenu.style.left=x+"px";ctxMenu.style.top=y+"px";
+  ctxMenu.style.display="block";
+}
+function findMindmapParent(root,targetId){
+  if(!root.children)return null;
+  for(var i=0;i<root.children.length;i++){
+    if(root.children[i].id===targetId)return root;
+    var found=findMindmapParent(root.children[i],targetId);
+    if(found)return found;
+  }
+  return null;
+}
+
+/* ---------- Mindmap Import Parser ---------- */
+function parseMindmapFile(content,fileName){
+  var ext=(fileName.split(".").pop()||"").toLowerCase();
+  content=content.trim();
+  if(ext==="json"||ext==="posf"||ext==="pos"){
+    try{
+      var data=JSON.parse(content);
+      return parseJSONMindmap(data);
+    }catch(e){
+      if(content.charAt(0)==="<")return parseXMLMindmap(content);
+      return parseOutlineText(content);
+    }
+  }
+  if(ext==="mm"||ext==="xml"||ext==="mmap"){
+    return parseXMLMindmap(content);
+  }
+  if(ext==="csv"||ext==="tsv"||ext==="txt"){
+    if(content.charAt(0)==="<")return parseXMLMindmap(content);
+    return parseOutlineText(content);
+  }
+  if(ext==="html"||ext==="htm"){
+    return parseHTMLMindmap(content);
+  }
+  if(content.charAt(0)==="{")return parseJSONMindmap(JSON.parse(content));
+  if(content.charAt(0)==="<")return parseXMLMindmap(content);
+  return parseOutlineText(content);
+}
+function parseJSONMindmap(data){
+  if(!data)return null;
+  if(data.id&&data.text!==undefined){
+    return normalizeMMNode(data);
+  }
+  if(data.title){
+    return{id:genId(),text:data.title,children:[]};
+  }
+  if(data.elements){
+    return parseProcessOnData(data);
+  }
+  if(data.root){
+    return normalizeMMNode(data.root);
+  }
+  if(data.mindmap){
+    return normalizeMMNode(data.mindmap);
+  }
+  if(Array.isArray(data)){
+    var root={id:genId(),text:data[0]?.title||data[0]?.text||"根节点",children:[]};
+    for(var i=1;i<data.length;i++){
+      if(data[i].title||data[i].text){
+        root.children.push(normalizeMMNode({text:data[i].title||data[i].text,children:data[i].children}));
+      }
+    }
+    return root;
+  }
+  return null;
+}
+function normalizeMMNode(node){
+  if(!node)return null;
+  var text=node.text||node.title||node.name||node.topic||"节点";
+  var children=[];
+  var childSource=node.children||node.nodes||node.branches||node.subTopics;
+  if(childSource&&Array.isArray(childSource)){
+    for(var i=0;i<childSource.length;i++){
+      var cn=normalizeMMNode(childSource[i]);
+      if(cn)children.push(cn);
+    }
+  }
+  return{id:node.id||genId(),text:text,children:children};
+}
+function parseProcessOnData(data){
+  var elements=data.elements||data.diagramElements||{};
+  var findRoot=null;
+  for(var key in elements){
+    var el=elements[key];
+    if(el.type==="mindmap"&&el.shape==="root"||el.isRoot){
+      findRoot=el;break;
+    }
+  }
+  if(!findRoot){
+    for(var key2 in elements){
+      var el2=elements[key2];
+      if(el2.type==="text"||el2.type==="mindmap"){findRoot=el2;break;}
+    }
+  }
+  if(!findRoot)return null;
+  var root={id:genId(),text:findRoot.text||findRoot.title||"中心",children:[]};
+  function collectChildren(parentId){
+    var kids=[];
+    for(var ck in elements){
+      var ce=elements[ck];
+      if(ce.parentId===parentId||ce.pid===parentId){
+        kids.push({id:ck,text:ce.text||ce.title||"子节点",children:collectChildren(ck)});
+      }
+    }
+    return kids;
+  }
+  root.children=collectChildren(findRoot.id||Object.keys(elements)[0]);
+  return root;
+}
+function parseXMLMindmap(xml){
+  var parser=new DOMParser();
+  var doc=parser.parseFromString(xml,"text/xml");
+  var rootEl=doc.querySelector("map > node")||doc.querySelector("node")||doc.querySelector("topic");
+  if(!rootEl){
+    var rootTopic=doc.querySelector("root, Root, Topic");
+    if(rootTopic)rootEl=rootTopic;
+  }
+  if(!rootEl)return null;
+  function buildNode(el){
+    var text=el.getAttribute("TEXT")||el.getAttribute("text")||el.getAttribute("title")||el.textContent.trim().split("\n")[0]||"节点";
+    var children=[];
+    var childEls=el.querySelectorAll(":scope > node, :scope > children > node, :scope > topic, :scope > children > topic");
+    if(childEls.length===0)childEls=el.children;
+    for(var i=0;i<childEls.length;i++){
+      if(childEls[i].tagName.toLowerCase()==="node"||childEls[i].tagName.toLowerCase()==="topic"){
+        children.push(buildNode(childEls[i]));
+      }
+    }
+    return{id:genId(),text:text,children:children};
+  }
+  return buildNode(rootEl);
+}
+function parseOutlineText(text){
+  var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length===0)return null;
+  function getIndent(line){
+    var m=line.match(/^(\s*)/);
+    return m?m[1].length:0;
+  }
+  function buildTree(startIdx,parentIndent){
+    var node={id:genId(),text:lines[startIdx].trim(),children:[]};
+    var i=startIdx+1;
+    while(i<lines.length){
+      var ind=getIndent(lines[i]);
+      if(ind<=parentIndent)break;
+      var child=buildTree(i,ind);
+      node.children.push(child);
+      i++;
+      while(i<lines.length&&getIndent(lines[i])>ind)i++;
+    }
+    return node;
+  }
+  return buildTree(0,getIndent(lines[0]));
+}
+function parseHTMLMindmap(html){
+  var parser=new DOMParser();
+  var doc=parser.parseFromString(html,"text/html");
+  function buildFromList(el){
+    var text=el.previousSibling?el.previousSibling.textContent.trim():"";
+    if(!text)text=el.previousElementSibling?el.previousElementSibling.textContent.trim():"根节点";
+    var children=[];
+    var lis=el.querySelectorAll(":scope > li");
+    for(var i=0;i<lis.length;i++){
+      var li=lis[i];
+      var liText=li.childNodes[0]?li.childNodes[0].textContent.trim():"节点";
+      var subUl=li.querySelector("ul,ol");
+      if(subUl){
+        var subNode=buildFromList(subUl);
+        subNode.text=liText;
+        children.push(subNode);
+      }else{
+        children.push({id:genId(),text:liText,children:[]});
+      }
+    }
+    return{id:genId(),text:text,children:children};
+  }
+  var rootUl=doc.querySelector("ul,ol");
+  if(rootUl)return buildFromList(rootUl);
+  return null;
+}
+
+/* ---------- Table Editor ---------- */
+function renderTableEditor(node){
+  if(!node.tableData)node.tableData=defaultTableData();
+  var td=node.tableData;
+
+  var importRow=document.createElement("div");
+  importRow.className="tbl-import-row";
+  var importBtn=document.createElement("button");
+  importBtn.textContent="导入表格";
+  importBtn.className="tbl-import-btn";
+  importBtn.addEventListener("click",function(){
+    var input=document.createElement("input");
+    input.type="file";
+    input.accept=".csv,.tsv,.txt,.json";
+    input.addEventListener("change",function(){
+      var file=input.files[0];if(!file)return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var content=e.target.result;
+        var parsed=parseCSVFile(content,file.name);
+        if(parsed&&parsed.columns.length>0){
+          node.tableData=parsed;
+          saveState();updateDetailPanel();
+        }else{
+          alert("无法解析此文件。支持CSV、TSV、JSON格式。");
+        }
+      };
+      reader.readAsText(file);
+    });
+    input.click();
+  });
+  importRow.appendChild(importBtn);
+  contentFieldsEl.appendChild(importRow);
+
+  var container=document.createElement("div");
+  container.className="table-editor";
+  var table=document.createElement("table");
+  table.className="ds-table";
+  var thead=document.createElement("thead");
+  var trh=document.createElement("tr");
+
+  /* Row header corner */
+  var cornerTh=document.createElement("th");
+  cornerTh.className="row-header";
+  cornerTh.textContent="#";
+  trh.appendChild(cornerTh);
+
+  td.columns.forEach(function(col,ci){
+    var th=document.createElement("th");
+    th.textContent=col;
+    th.addEventListener("contextmenu",function(e){
+      e.preventDefault();e.stopPropagation();
+      showTableColMenu(e.clientX,e.clientY,ci,node,function(){updateDetailPanel();});
+    });
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  var tbody=document.createElement("tbody");
+  td.rows.forEach(function(row,ri){
+    var tr=document.createElement("tr");
+    var rowHead=document.createElement("td");
+    rowHead.className="row-header";rowHead.textContent=(ri+1).toString();
+    rowHead.addEventListener("contextmenu",function(e){
+      e.preventDefault();e.stopPropagation();
+      showTableRowMenu(e.clientX,e.clientY,ri,node,function(){updateDetailPanel();});
+    });
+    tr.appendChild(rowHead);
+
+    row.forEach(function(cell,ci){
+      var tdEl=document.createElement("td");
+      tdEl.textContent=cell||"";
+      tdEl.addEventListener("dblclick",function(){
+        tdEl.classList.add("editing");
+        var input=document.createElement("input");
+        input.type="text";input.value=cell||"";
+        tdEl.textContent="";tdEl.appendChild(input);
+        input.focus();input.select();
+        function finish(){
+          td.rows[ri][ci]=input.value;
+          saveState();
+          tdEl.classList.remove("editing");
+          tdEl.textContent=input.value||"";
+        }
+        input.addEventListener("blur",finish);
+        input.addEventListener("keydown",function(ev){
+          if(ev.key==="Enter"){ev.preventDefault();input.blur();}
+          if(ev.key==="Escape"){input.value=cell||"";input.blur();}
+        });
+      });
+      tr.appendChild(tdEl);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+  contentFieldsEl.appendChild(container);
+}
+
+function showTableColMenu(x,y,colIndex,node,redraw){
+  ctxMenu.innerHTML="";
+  var addLeft=document.createElement("button");
+  addLeft.textContent="左侧插入列";
+  addLeft.addEventListener("click",function(){
+    node.tableData.columns.splice(colIndex,0,"列"+(node.tableData.columns.length+1));
+    node.tableData.rows.forEach(function(r){r.splice(colIndex,0,"");});
+    saveState();redraw();ctxMenu.style.display="none";
+  });
+  ctxMenu.appendChild(addLeft);
+
+  var addRight=document.createElement("button");
+  addRight.textContent="右侧插入列";
+  addRight.addEventListener("click",function(){
+    node.tableData.columns.splice(colIndex+1,0,"列"+(node.tableData.columns.length+1));
+    node.tableData.rows.forEach(function(r){r.splice(colIndex+1,0,"");});
+    saveState();redraw();ctxMenu.style.display="none";
+  });
+  ctxMenu.appendChild(addRight);
+
+  if(node.tableData.columns.length>1){
+    ctxMenu.appendChild(document.createElement("hr"));
+    var delCol=document.createElement("button");
+    delCol.textContent="删除列";delCol.className="danger";
+    delCol.addEventListener("click",function(){
+      node.tableData.columns.splice(colIndex,1);
+      node.tableData.rows.forEach(function(r){r.splice(colIndex,1);});
+      saveState();redraw();ctxMenu.style.display="none";
+    });
+    ctxMenu.appendChild(delCol);
+  }
+
+  ctxMenu.style.left=x+"px";ctxMenu.style.top=y+"px";
+  ctxMenu.style.display="block";
+}
+
+function showTableRowMenu(x,y,rowIndex,node,redraw){
+  ctxMenu.innerHTML="";
+  var addAbove=document.createElement("button");
+  addAbove.textContent="上方插入行";
+  addAbove.addEventListener("click",function(){
+    var newRow=node.tableData.columns.map(function(){return"";});
+    node.tableData.rows.splice(rowIndex,0,newRow);
+    saveState();redraw();ctxMenu.style.display="none";
+  });
+  ctxMenu.appendChild(addAbove);
+
+  var addBelow=document.createElement("button");
+  addBelow.textContent="下方插入行";
+  addBelow.addEventListener("click",function(){
+    var newRow=node.tableData.columns.map(function(){return"";});
+    node.tableData.rows.splice(rowIndex+1,0,newRow);
+    saveState();redraw();ctxMenu.style.display="none";
+  });
+  ctxMenu.appendChild(addBelow);
+
+  if(node.tableData.rows.length>1){
+    ctxMenu.appendChild(document.createElement("hr"));
+    var delRow=document.createElement("button");
+    delRow.textContent="删除行";delRow.className="danger";
+    delRow.addEventListener("click",function(){
+      node.tableData.rows.splice(rowIndex,1);
+      saveState();redraw();ctxMenu.style.display="none";
+    });
+    ctxMenu.appendChild(delRow);
+  }
+
+  ctxMenu.style.left=x+"px";ctxMenu.style.top=y+"px";
+  ctxMenu.style.display="block";
+}
+
+/* ---------- CSV/Table Import Parser ---------- */
+function parseCSVFile(content,fileName){
+  var ext=(fileName.split(".").pop()||"").toLowerCase();
+  if(ext==="json"){
+    try{
+      var data=JSON.parse(content);
+      if(data.columns&&data.rows)return data;
+      if(Array.isArray(data)&&data.length>0){
+        var cols=Object.keys(data[0]);
+        var rows=data.map(function(r){return cols.map(function(c){return String(r[c]||"");});});
+        return{columns:cols,rows:rows};
+      }
+      return null;
+    }catch(e){return null;}
+  }
+  var separator=",";
+  if(ext==="tsv")separator="\t";
+  else if(content.indexOf("\t")!==-1&&content.indexOf(",")===-1)separator="\t";
+  var lines=content.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length<1)return null;
+  function parseLine(line,sep){
+    var result=[],current="",inQuote=false;
+    for(var i=0;i<line.length;i++){
+      var ch=line[i];
+      if(ch==='"'){if(inQuote&&line[i+1]==='"'){current+='"';i++;}else{inQuote=!inQuote;}}
+      else if(ch===sep&&!inQuote){result.push(current);current="";}
+      else{current+=ch;}
+    }
+    result.push(current);
+    return result;
+  }
+  var columns=parseLine(lines[0],separator);
+  var rows=[];
+  for(var i=1;i<lines.length;i++){
+    rows.push(parseLine(lines[i],separator));
+  }
+  if(columns.length<1)return null;
+  while(rows.length<1)rows.push(columns.map(function(){return"";}));
+  return{columns:columns,rows:rows};
+}
+
+/* ---------- Gallery Editor ---------- */
+function renderGalleryEditor(node){
+  if(!node.galleryData)node.galleryData=[];
+  var grid=document.createElement("div");
+  grid.className="gallery-grid";
+
+  node.galleryData.forEach(function(imgData,idx){
+    var item=document.createElement("div");
+    item.className="gallery-item";
+    var img=document.createElement("img");img.src=imgData;
+    item.appendChild(img);
+    item.addEventListener("click",function(){showLightbox(imgData);});
+
+    var rm=document.createElement("button");
+    rm.style.position="absolute";rm.style.top="4px";rm.style.right="4px";
+    rm.style.width="22px";rm.style.height="22px";
+    rm.style.background="rgba(0,0,0,0.6)";rm.style.border="none";
+    rm.style.color="#d0706a";rm.style.borderRadius="4px";
+    rm.style.cursor="pointer";rm.style.fontSize="14px";rm.style.lineHeight="1";
+    rm.style.display="none";rm.textContent="×";
+    rm.addEventListener("click",function(e){
+      e.stopPropagation();
+      node.galleryData.splice(idx,1);saveState();updateDetailPanel();
+    });
+    item.appendChild(rm);
+    item.addEventListener("mouseenter",function(){rm.style.display="block";});
+    item.addEventListener("mouseleave",function(){rm.style.display="none";});
+    grid.appendChild(item);
+  });
+
+  /* Add button */
+  var addItem=document.createElement("div");
+  addItem.className="gallery-item";
+  var addBtn=document.createElement("div");
+  addBtn.className="gallery-add-btn";addBtn.textContent="+";
+  addBtn.addEventListener("click",function(){
+    var input=document.createElement("input");
+    input.type="file";input.accept="image/*";
+    input.addEventListener("change",function(){
+      var file=input.files[0];if(!file)return;
+      compressImage(file,function(dataUrl){
+        node.galleryData.push(dataUrl);saveState();updateDetailPanel();
+      });
+    });
+    input.click();
+  });
+  addItem.appendChild(addBtn);
+  grid.appendChild(addItem);
+
+  contentFieldsEl.appendChild(grid);
+}
+
+/* ---------- Lightbox ---------- */
+function showLightbox(src){
+  lightboxImg.src=src;
+  imageLightbox.style.display="flex";
+}
+document.getElementById("close-lightbox").addEventListener("click",function(){imageLightbox.style.display="none";});
+imageLightbox.addEventListener("click",function(e){if(e.target===imageLightbox)imageLightbox.style.display="none";});
+
+/* ---------- Content Field Paste Handler ---------- */
+function handleContentPaste(ev,editableEl,node,field){
+  var items=ev.clipboardData&&ev.clipboardData.items;
+  if(!items)return;
+  for(var i=0;i<items.length;i++){
+    if(items[i].type.indexOf("image")!==-1){
+      ev.preventDefault();
+      var blob=items[i].getAsFile();
+      if(!blob)return;
+      compressImage(blob,function(dataUrl){
+        var img=document.createElement("img");
+        img.src=dataUrl;
+        img.addEventListener("click",function(){showLightbox(dataUrl);});
+        /* Insert at cursor position */
+        var sel=window.getSelection();
+        if(sel.rangeCount>0&&editableEl.contains(sel.anchorNode)){
+          var range=sel.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(img);
+          range.setStartAfter(img);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }else{
+          editableEl.appendChild(img);
+        }
+        var br=document.createElement("br");
+        editableEl.appendChild(br);
+        node.leafData[field.key]=editableEl.innerHTML;
+        saveState();
+      });
+      return;
+    }
+  }
+}
+
+/* ---------- Full-screen Content Viewer ---------- */
+function openContentViewer(node,field){
+  cvEditingNode=node;
+  cvTitle.textContent=(node.title||"")+" - 内容详情";
+  cvEditor.innerHTML=node.leafData[field.key]||"";
+  contentViewer.style.display="flex";
+  /* Handle paste in full-screen viewer */
+  cvEditor.onpaste=function(ev){
+    var items=ev.clipboardData&&ev.clipboardData.items;
+    if(!items)return;
+    for(var i=0;i<items.length;i++){
+      if(items[i].type.indexOf("image")!==-1){
+        ev.preventDefault();
+        var blob=items[i].getAsFile();
+        if(!blob)return;
+        compressImage(blob,function(dataUrl){
+          var img=document.createElement("img");
+          img.src=dataUrl;
+          img.addEventListener("click",function(){showLightbox(dataUrl);});
+          var sel=window.getSelection();
+          if(sel.rangeCount>0&&cvEditor.contains(sel.anchorNode)){
+            var range=sel.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(img);
+            range.setStartAfter(img);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }else{
+            cvEditor.appendChild(img);
+          }
+          var br=document.createElement("br");
+          cvEditor.appendChild(br);
+          node.leafData[field.key]=cvEditor.innerHTML;
+          saveState();
+        });
+        return;
+      }
+    }
+  };
+  /* Auto-save on input */
+  cvEditor.oninput=function(){
+    node.leafData[field.key]=cvEditor.innerHTML;
+    saveState();
+  };
+  /* Image click to lightbox */
+  var cvImgs=cvEditor.querySelectorAll("img");
+  for(var ci=0;ci<cvImgs.length;ci++){
+    (function(img){img.addEventListener("click",function(){showLightbox(img.src);});})(cvImgs[ci]);
+  }
+  setTimeout(function(){cvEditor.focus();},100);
+}
+function closeContentViewer(){
+  if(cvEditingNode){
+    var field=RICH_FIELDS.find(function(f){return f.isContentField;});
+    if(field&&cvEditingNode.leafData){
+      cvEditingNode.leafData[field.key]=cvEditor.innerHTML;
+      saveState();
+    }
+  }
+  contentViewer.style.display="none";
+  cvEditingNode=null;
+  cvEditor.onpaste=null;
+  cvEditor.oninput=null;
+}
+cvCloseBtn.addEventListener("click",closeContentViewer);
+contentViewer.addEventListener("click",function(e){if(e.target===contentViewer)closeContentViewer();});
+
+/* ---------- Node CRUD ---------- */
+function createNode(type,parentId,x,y,title){
+  var trunk=getTrunk();
+  if(!parentId&&type==="branch"&&trunk)parentId=trunk.id;
+  var node={id:genId(),title:title||"新节点",type:type,parentId:parentId,
+    x:x||(trunk?trunk.x+60:canvasArea.clientWidth/2),y:y||(trunk?trunk.y+60:canvasArea.clientHeight/2),
+    vx:0,vy:0,fx:0,fy:0,associations:[],collapsed:false};
+  if(type==="leaf"){
+    node.contentType="rich-text";
+    node.leafData=createLeafRichData();
+    node.mindmapData=defaultMindmap(title||"新叶子");
+    node.tableData=defaultTableData();
+    node.galleryData=[];
+  }else{node.content="";}
+  state.nodes.push(node);simAlpha=1;saveState();return node;
+}
+function deleteNode(id){
+  var toDelete={};
+  (function collect(nid){toDelete[nid]=true;getChildren(nid).forEach(function(c){collect(c.id);});})(id);
+  var deletedIds=Object.keys(toDelete);
+  state.nodes=state.nodes.filter(function(n){return!toDelete[n.id];});
+  for(var i=0;i<state.nodes.length;i++){
+    var n=state.nodes[i];
+    if(n.associations){
+      n.associations=n.associations.filter(function(a){return deletedIds.indexOf(a.targetId)===-1;});
+    }
+  }
+  if(state.selectedId&&toDelete[state.selectedId])state.selectedId=null;
+  state.assocVersion++;simAlpha=1;saveState();updateDetailPanel();
+}
+function selectNode(id){state.selectedId=id;previewMode=false;updateDetailPanel();}
+
+/* ---------- Drag Transfer ---------- */
+function transferBranch(branchId,newParentId){
+  var branch=getNode(branchId);
+  var newParent=getNode(newParentId);
+  if(!branch||!newParent||branch.type!=="branch")return false;
+  if(newParent.type!=="branch"&&newParent.type!=="trunk")return false;
+  /* Check for circular */
+  var cur=newParent;
+  while(cur&&cur.parentId){
+    if(cur.parentId===branchId)return false;
+    cur=getNode(cur.parentId);
+  }
+  branch.parentId=newParentId;
+  simAlpha=1;saveState();
+  return true;
+}
+
+/* ---------- Association Handlers ---------- */
+function handleAssocClick(id){
+  var node=getNode(id);
+  if(!node)return;
+  if(!state.assocStart){
+    state.assocStart=id;
+  }else if(state.assocStart===id){
+    state.assocStart=null;
+  }else{
+    showAssocDialog(state.assocStart,id,"");
+  }
+}
+
+function showAssocDialog(sourceId,targetId,oldLabel){
+  pendingAssoc={sourceId:sourceId,targetId:targetId};
+  assocLabelInput.value=oldLabel||"";
+  assocDialog.style.display="flex";
+  setTimeout(function(){assocLabelInput.focus();},50);
+}
+function hideAssocDialog(){
+  assocDialog.style.display="none";
+  pendingAssoc=null;
+  state.assocStart=null;
+}
+
+function showLineMenu(cx,cy,sourceId,targetId,label){
+  pendingLineEdit={sourceId:sourceId,targetId:targetId,oldLabel:label};
+  lineMenu.style.display="block";
+  lineMenu.style.left=cx+"px";
+  lineMenu.style.top=cy+"px";
+}
+
+function navigateToNode(nodeId){
+  var node=getNode(nodeId);
+  if(!node)return;
+  var W=canvasArea.clientWidth,H=canvasArea.clientHeight;
+  var targetScale=Math.max(viewport.scale,1.2);
+  viewport.scale=targetScale;
+  viewport.x=W/2-node.x*targetScale;
+  viewport.y=H/2-node.y*targetScale;
+  updateViewport();
+  state.flashingNode=nodeId;
+  state.flashStart=Date.now();
+  selectNode(nodeId);
+}
+
+/* ---------- Event Handlers ---------- */
+function handlePointerDown(e){
+  if(e.button!==undefined&&e.button!==0)return;
+  var pos=getMousePos(e);
+  var g=findNodeGroup(e.target);
+  if(g){
+    var id=g.getAttribute("data-id");
+    var node=getNode(id);if(!node)return;
+    var world=screenToWorld(pos.x,pos.y);
+    drag={id:id,type:node.type,offsetWX:world.x-node.x,offsetWY:world.y-node.y,moved:false,downX:pos.x,downY:pos.y};
+    dragTransferTarget=null;
+  }else{
+    pan={startClientX:pos.clientX,startClientY:pos.clientY,startVpX:viewport.x,startVpY:viewport.y,moved:false};
+    svg.classList.add("panning");
+  }
+}
+function handlePointerMove(e){
+  var pos=getMousePos(e);
+  if(drag){
+    var dx=pos.x-drag.downX,dy=pos.y-drag.downY;
+    if(Math.abs(dx)>4||Math.abs(dy)>4){drag.moved=true;svg.classList.add("node-drag");}
+    if(drag.moved){
+      var node=getNode(drag.id);if(node){
+        var world=screenToWorld(pos.x,pos.y);
+        node.x=world.x-drag.offsetWX;node.y=world.y-drag.offsetWY;
+        node.vx=0;node.vy=0;simAlpha=Math.max(simAlpha,0.3);
+
+        /* Check drag transfer for branches */
+        if(drag.type==="branch"){
+          var closest=null,closestDist=Infinity;
+          for(var i=0;i<state.nodes.length;i++){
+            var on=state.nodes[i];
+            if(on.id===drag.id)continue;
+            if(on.type!=="branch"&&on.type!=="trunk")continue;
+            /* Check not a descendant */
+            var isDesc=false,cur=on;
+            while(cur&&cur.parentId){
+              if(cur.parentId===drag.id){isDesc=true;break;}
+              cur=getNode(cur.parentId);
+            }
+            if(isDesc)continue;
+            var ddx=on.x-node.x,ddy=on.y-node.y,dd=Math.sqrt(ddx*ddx+ddy*ddy);
+            var ost=getNodeStyle(on);
+            if(dd<ost.radius+20&&dd<closestDist){closest=on;closestDist=dd;}
+          }
+          dragTransferTarget=closest?closest.id:null;
+        }
+      }
+    }
+    return;
+  }
+  if(pan){
+    var pdx=pos.clientX-pan.startClientX,pdy=pos.clientY-pan.startClientY;
+    if(Math.abs(pdx)>4||Math.abs(pdy)>4)pan.moved=true;
+    if(pan.moved){viewport.x=pan.startVpX+pdx;viewport.y=pan.startVpY+pdy;updateViewport();}
+    return;
+  }
+  if(!hoveringAssocLine){
+    var g=findNodeGroup(e.target);
+    if(g&&e.target.ownerSVGElement===svg){
+      var id=g.getAttribute("data-id");
+      var node=getNode(id);
+      if(node){
+        tooltip.style.display="block";
+        tooltip.style.left=(pos.clientX+16)+"px";
+        tooltip.style.top=(pos.clientY+16)+"px";
+        var st=getNodeStyle(node);
+        var html='<div class="tt-title" style="color:'+st.text+'">'+escapeHtml(node.title||"未命名")+'</div><div class="tt-type '+node.type+'">'+TYPE_LABELS[node.type]+'</div>';
+        if(node.type==="leaf"&&node.contentType){
+          html+='<div class="tt-content-type">类型：'+CONTENT_TYPE_LABELS[node.contentType]+'</div>';
+        }
+        tooltip.innerHTML=html;
+        return;
+      }
+    }
+    tooltip.style.display="none";
+  }
+}
+function handlePointerUp(e){
+  if(drag){
+    if(!drag.moved){
+      var id=drag.id;
+      if(state.assocMode){
+        handleAssocClick(id);
+      }else{
+        if(clickTimer)clearTimeout(clickTimer);
+        clickTimer=setTimeout(function(){
+          var clickedNode=getNode(id);
+          if(clickedNode&&(clickedNode.type==="branch"||clickedNode.type==="trunk")){
+            clickedNode.collapsed=!clickedNode.collapsed;
+            saveState();simAlpha=1;
+          }
+          selectNode(id);clickTimer=null;
+        },220);
+      }
+    }else if(drag.type==="branch"&&dragTransferTarget){
+      /* Transfer branch */
+      transferBranch(drag.id,dragTransferTarget);
+    }
+    svg.classList.remove("node-drag");drag=null;dragTransferTarget=null;
+  }
+  if(pan){svg.classList.remove("panning");pan=null;}
+}
+
+svg.addEventListener("mousedown",handlePointerDown);
+window.addEventListener("mousemove",handlePointerMove);
+window.addEventListener("mouseup",handlePointerUp);
+
+/* Touch support */
+svg.addEventListener("touchstart",function(e){
+  if(e.touches.length===1){
+    e.preventDefault();
+    var touch=e.touches[0];
+    var rect=svg.getBoundingClientRect();
+    var fakeEvent={target:document.elementFromPoint(touch.clientX,touch.clientY),clientX:touch.clientX,clientY:touch.clientY,button:0};
+    handlePointerDown(fakeEvent);
+  }else if(e.touches.length===2){
+    e.preventDefault();
+    if(drag){svg.classList.remove("node-drag");drag=null;}
+    if(pan){svg.classList.remove("panning");pan=null;}
+    var dx=e.touches[0].clientX-e.touches[1].clientX;
+    var dy=e.touches[0].clientY-e.touches[1].clientY;
+    pinchData={dist:Math.sqrt(dx*dx+dy*dy),scale:viewport.scale};
+  }
+},{passive:false});
+
+svg.addEventListener("touchmove",function(e){
+  if(e.touches.length===1&&(drag||pan)){
+    e.preventDefault();
+    var touch=e.touches[0];
+    var fakeEvent={target:document.elementFromPoint(touch.clientX,touch.clientY),clientX:touch.clientX,clientY:touch.clientY};
+    handlePointerMove(fakeEvent);
+  }else if(e.touches.length===2&&pinchData){
+    e.preventDefault();
+    var dx=e.touches[0].clientX-e.touches[1].clientX;
+    var dy=e.touches[0].clientY-e.touches[1].clientY;
+    var dist=Math.sqrt(dx*dx+dy*dy);
+    if(pinchData.dist>0){
+      var factor=dist/pinchData.dist;
+      var newScale=Math.max(0.3,Math.min(3,pinchData.scale*factor));
+      var rect=svg.getBoundingClientRect();
+      var midX=(e.touches[0].clientX+e.touches[1].clientX)/2-rect.left;
+      var midY=(e.touches[0].clientY+e.touches[1].clientY)/2-rect.top;
+      var world=screenToWorld(midX,midY);
+      viewport.scale=newScale;
+      viewport.x=midX-world.x*newScale;
+      viewport.y=midY-world.y*newScale;
+      updateViewport();
+    }
+  }
+},{passive:false});
+
+svg.addEventListener("touchend",function(e){
+  if(e.touches.length===0){
+    if(drag&&!drag.moved){
+      var id=drag.id;
+      if(state.assocMode){handleAssocClick(id);}
+      else{if(clickTimer)clearTimeout(clickTimer);clickTimer=setTimeout(function(){
+        var clickedNode=getNode(id);
+        if(clickedNode&&(clickedNode.type==="branch"||clickedNode.type==="trunk")){
+          clickedNode.collapsed=!clickedNode.collapsed;saveState();simAlpha=1;
+        }
+        selectNode(id);clickTimer=null;
+      },220);}
+    }else if(drag&&drag.type==="branch"&&dragTransferTarget){
+      transferBranch(drag.id,dragTransferTarget);
+    }
+    if(drag){svg.classList.remove("node-drag");drag=null;dragTransferTarget=null;}
+    if(pan){svg.classList.remove("panning");pan=null;}
+    pinchData=null;
+  }
+});
+
+var lastTouchTap={time:0,target:null};
+svg.addEventListener("touchend",function(e){
+  if(e.changedTouches.length===1){
+    var touch=e.changedTouches[0];
+    var target=document.elementFromPoint(touch.clientX,touch.clientY);
+    var now=Date.now();
+    if(now-lastTouchTap.time<350&&lastTouchTap.target===target){
+      e.preventDefault();
+      var g=findNodeGroup(target);
+      if(g){
+        if(clickTimer){clearTimeout(clickTimer);clickTimer=null;}
+        var id=g.getAttribute("data-id");
+        var node=getNode(id);if(!node)return;
+        var newTitle=prompt("编辑标题:",node.title);
+        if(newTitle!==null&&newTitle.trim()){node.title=newTitle.trim();saveState();updateDetailPanel();}
+        selectNode(id);
+      }else{
+        var rect=svg.getBoundingClientRect();
+        var pos={x:touch.clientX-rect.left,y:touch.clientY-rect.top};
+        var world=screenToWorld(pos.x,pos.y);
+        var trunk=getTrunk();if(!trunk)return;
+        var newNode=createNode("branch",trunk.id,world.x,world.y,"新支干");
+        selectNode(newNode.id);updateDetailPanel();
+      }
+    }
+    lastTouchTap={time:now,target:target};
+  }
+});
+
+svg.addEventListener("wheel",function(e){
+  e.preventDefault();
+  var rect=svg.getBoundingClientRect();
+  var sx=e.clientX-rect.left,sy=e.clientY-rect.top;
+  var world=screenToWorld(sx,sy);
+  var factor=e.deltaY>0?0.9:1.1;
+  var newScale=Math.max(0.3,Math.min(3,viewport.scale*factor));
+  viewport.x=sx-world.x*newScale;viewport.y=sy-world.y*newScale;viewport.scale=newScale;
+  updateViewport();
+},{passive:false});
+
+svg.addEventListener("dblclick",function(e){
+  var g=findNodeGroup(e.target);
+  if(g){
+    e.stopPropagation();
+    if(clickTimer){clearTimeout(clickTimer);clickTimer=null;}
+    var id=g.getAttribute("data-id");
+    var node=getNode(id);if(!node)return;
+    var newTitle=prompt("编辑标题:",node.title);
+    if(newTitle!==null&&newTitle.trim()){node.title=newTitle.trim();saveState();updateDetailPanel();}
+    selectNode(id);
+  }else{
+    var pos=getMousePos(e);
+    var world=screenToWorld(pos.x,pos.y);
+    var trunk=getTrunk();if(!trunk)return;
+    var newNode=createNode("branch",trunk.id,world.x,world.y,"新支干");
+    selectNode(newNode.id);updateDetailPanel();
+  }
+});
+
+svg.addEventListener("contextmenu",function(e){
+  var g=findNodeGroup(e.target);if(!g)return;
+  e.preventDefault();
+  var id=g.getAttribute("data-id");
+  var node=getNode(id);if(!node)return;
+  if(node.type==="trunk"){alert("主干节点不可删除");return;}
+  var cc=getChildren(id).length;
+  var msg="确定删除「"+node.title+"」？";
+  if(cc>0)msg+="\n其下 "+cc+" 个子节点也将一并删除。";
+  if(confirm(msg))deleteNode(id);
+});
+
+svg.addEventListener("dragstart",function(e){e.preventDefault();});
+
+/* Title input */
+detailTitle.addEventListener("input",function(){var n=state.selectedId?getNode(state.selectedId):null;if(n){n.title=detailTitle.value;saveState();}});
+
+/* Close button */
+detailCloseBtn.addEventListener("click",function(){state.selectedId=null;updateDetailPanel();});
+
+/* Context menu close on outside click */
+document.addEventListener("click",function(e){
+  if(!ctxMenu.contains(e.target)){ctxMenu.style.display="none";}
+  if(!lineMenu.contains(e.target)){lineMenu.style.display="none";}
+});
+document.addEventListener("contextmenu",function(e){
+  if(!ctxMenu.contains(e.target)){ctxMenu.style.display="none";}
+});
+
+/* Detail panel buttons */
+detailAddBtn.addEventListener("click",function(){
+  var n=state.selectedId?getNode(state.selectedId):null;if(!n)return;
+  var a=Math.random()*Math.PI*2,d=110;
+  var x=n.x+Math.cos(a)*d,y=n.y+Math.sin(a)*d;
+  if(n.type==="trunk"){
+    var node=createNode("branch",n.id,x,y,"新支干");selectNode(node.id);updateDetailPanel();
+  }
+});
+detailAddSubBtn.addEventListener("click",function(){
+  var n=state.selectedId?getNode(state.selectedId):null;if(!n||n.type!=="branch")return;
+  var a=Math.random()*Math.PI*2,d=90;
+  var x=n.x+Math.cos(a)*d,y=n.y+Math.sin(a)*d;
+  var node=createNode("branch",n.id,x,y,"新分支");selectNode(node.id);updateDetailPanel();
+});
+detailAddLeafBtn.addEventListener("click",function(){
+  var n=state.selectedId?getNode(state.selectedId):null;if(!n||n.type!=="branch")return;
+  var a=Math.random()*Math.PI*2,d=85;
+  var newNode=createNode("leaf",n.id,n.x+Math.cos(a)*d,n.y+Math.sin(a)*d,"新叶子");
+  selectNode(newNode.id);updateDetailPanel();
+});
+detailDeleteBtn.addEventListener("click",function(){
+  if(!state.selectedId)return;
+  var n=getNode(state.selectedId);if(!n)return;
+  if(n.type==="trunk"){alert("主干节点不可删除");return;}
+  var cc=getChildren(n.id).length;
+  var msg="确定删除「"+n.title+"」？";
+  if(cc>0)msg+="\n其下 "+cc+" 个子节点也将一并删除。";
+  if(confirm(msg))deleteNode(state.selectedId);
+});
+
+/* Toolbar buttons */
+btnAddBranch.addEventListener("click",function(){
+  var trunk=getTrunk();if(!trunk)return;
+  var a=Math.random()*Math.PI*2,d=110;
+  var node=createNode("branch",trunk.id,trunk.x+Math.cos(a)*d,trunk.y+Math.sin(a)*d,"新支干");
+  selectNode(node.id);updateDetailPanel();
+});
+btnAddLeaf.addEventListener("click",function(){
+  if(btnAddLeaf.disabled)return;
+  var n=state.selectedId?getNode(state.selectedId):null;
+  if(!n||n.type!=="branch")return;
+  var a=Math.random()*Math.PI*2,d=85;
+  var newNode=createNode("leaf",n.id,n.x+Math.cos(a)*d,n.y+Math.sin(a)*d,"新叶子");
+  selectNode(newNode.id);updateDetailPanel();
+});
+
+/* Association mode toggle */
+btnAssocMode.addEventListener("click",function(){
+  state.assocMode=!state.assocMode;
+  state.assocStart=null;
+  if(state.assocMode){
+    btnAssocMode.classList.add("active");
+    assocHint.style.display="block";
+  }else{
+    btnAssocMode.classList.remove("active");
+    assocHint.style.display="none";
+  }
+});
+
+/* Show all associations toggle */
+btnShowAssoc.addEventListener("click",function(){
+  state.showAllAssoc=!state.showAllAssoc;
+  if(state.showAllAssoc){
+    btnShowAssoc.classList.add("filter-active");
+  }else{
+    btnShowAssoc.classList.remove("filter-active");
+  }
+  state.assocVersion++;
+});
+
+btnResetView.addEventListener("click",function(){
+  viewport.x=0;viewport.y=0;viewport.scale=1;updateViewport();simAlpha=1;
+  var trunk=getTrunk();
+  if(trunk){trunk.x=canvasArea.clientWidth/2;trunk.y=canvasArea.clientHeight/2;trunk.vx=0;trunk.vy=0;}
+  state.nodes.forEach(function(n){if(n.type!=="trunk"){n.vx=(Math.random()-0.5)*30;n.vy=(Math.random()-0.5)*30;}});
+});
+
+/* Mobile mode toggle */
+btnMobileMode.addEventListener("click",function(){
+  appEl.classList.toggle("mobile-mode");
+  btnMobileMode.classList.toggle("filter-active");
+  simAlpha=1;
+  setTimeout(function(){simAlpha=1;},100);
+});
+
+window.addEventListener("resize",function(){simAlpha=Math.max(simAlpha,0.4);});
+
+/* Association dialog */
+document.getElementById("assoc-dialog-ok").addEventListener("click",function(){
+  if(pendingAssoc){
+    var label=assocLabelInput.value.trim();
+    if(label){
+      var source=getNode(pendingAssoc.sourceId);
+      if(source){
+        if(!source.associations)source.associations=[];
+        source.associations=source.associations.filter(function(a){return a.targetId!==pendingAssoc.targetId;});
+        source.associations.push({targetId:pendingAssoc.targetId,label:label});
+        state.assocVersion++;saveState();updateDetailPanel();
+      }
+    }
+  }
+  hideAssocDialog();
+});
+document.getElementById("assoc-dialog-cancel").addEventListener("click",hideAssocDialog);
+assocLabelInput.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();document.getElementById("assoc-dialog-ok").click();}});
+assocDialog.addEventListener("click",function(e){if(e.target===assocDialog)hideAssocDialog();});
+
+/* Line menu */
+document.getElementById("line-menu-edit").addEventListener("click",function(){
+  if(pendingLineEdit){
+    showAssocDialog(pendingLineEdit.sourceId,pendingLineEdit.targetId,pendingLineEdit.oldLabel);
+  }
+  lineMenu.style.display="none";
+});
+document.getElementById("line-menu-delete").addEventListener("click",function(){
+  if(pendingLineEdit){
+    var source=getNode(pendingLineEdit.sourceId);
+    if(source&&source.associations){
+      source.associations=source.associations.filter(function(a){return a.targetId!==pendingLineEdit.targetId;});
+      state.assocVersion++;saveState();updateDetailPanel();
+    }
+  }
+  lineMenu.style.display="none";
+});
+
+window.addEventListener("keydown",function(e){
+  if(e.key==="Escape"){
+    if(contentViewer.style.display==="flex"){closeContentViewer();return;}
+    if(imageLightbox.style.display==="flex"){imageLightbox.style.display="none";return;}
+    if(assocDialog.style.display==="flex"){hideAssocDialog();return;}
+    if(ctxMenu.style.display==="block"){ctxMenu.style.display="none";return;}
+    if(lineMenu.style.display==="block"){lineMenu.style.display="none";return;}
+    if(state.assocMode){
+      state.assocMode=false;state.assocStart=null;
+      btnAssocMode.classList.remove("active");assocHint.style.display="none";
+      return;
+    }
+    if(state.selectedId){state.selectedId=null;updateDetailPanel();}
+  }
+});
+
+/* ---------- Init ---------- */
+function init(){
+  loadState();
+  if(state.nodes.length===0||!getTrunk()){
+    var cx=canvasArea.clientWidth/2,cy=canvasArea.clientHeight/2;
+    state.nodes=[{id:genId(),title:"道",content:"万物之始，道之本源。",type:"trunk",parentId:null,x:cx,y:cy,vx:0,vy:0,fx:0,fy:0,associations:[]}];
+    saveState();
+  }else{
+    var trunk=getTrunk();
+    if(trunk){
+      var W=canvasArea.clientWidth,H=canvasArea.clientHeight;
+      if(trunk.x<50||trunk.x>W-50)trunk.x=W/2;
+      if(trunk.y<50||trunk.y>H-50)trunk.y=H/2;
+    }
+  }
+  updateViewport();updateDetailPanel();simulate();
+}
+init();
+initApp();
+</script>
+</body>
+</html>
