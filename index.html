@@ -157,8 +157,7 @@ body{
 .detail-content-scroll::-webkit-scrollbar-track{background:transparent;}
 .detail-content-scroll::-webkit-scrollbar-thumb{background:rgba(70,130,180,0.2);border-radius:3px;}
 .detail-content-scroll.leaf-bg{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 500'%3E%3Cg opacity='0.06'%3E%3Cpath d='M200 60 C 120 80, 80 180, 100 300 C 110 380, 160 440, 200 450 C 240 440, 290 380, 300 300 C 320 180, 280 80, 200 60 Z' fill='%234caf50'/%3E%3Cpath d='M200 60 L 200 450' stroke='%234caf50' stroke-width='2' fill='none'/%3E%3Cpath d='M200 120 Q 160 140, 130 180' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 120 Q 240 140, 270 180' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 180 Q 150 200, 120 250' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 180 Q 250 200, 280 250' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 250 Q 160 270, 135 320' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 250 Q 240 270, 265 320' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 330 Q 170 345, 155 380' stroke='%234caf50' stroke-width='1.2' fill='none'/%3E%3Cpath d='M200 330 Q 230 345, 245 380' stroke='%234caf50' stroke-width='1.2' fill='none'/%3E%3Cpath d='M200 180 Q 175 195, 155 230' stroke='%2366bb6a' stroke-width='1' fill='none'/%3E%3Cpath d='M200 180 Q 225 195, 245 230' stroke='%2366bb6a' stroke-width='1' fill='none'/%3E%3Cpath d='M200 250 Q 175 265, 160 295' stroke='%2366bb6a' stroke-width='1' fill='none'/%3E%3Cpath d='M200 250 Q 225 265, 240 295' stroke='%2366bb6a' stroke-width='1' fill='none'/%3E%3C/g%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:center 40%;background-size:300px auto;
+  /* Leaf background removed from side panel - only shown in full-screen viewer */
 }
 
 .content-type-row{
@@ -208,7 +207,7 @@ body{
   background:rgba(12,20,38,0.6);border:1px solid rgba(70,130,180,0.15);
   color:rgba(140,170,200,0.6);width:18px;height:18px;border-radius:4px;
   cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;
-  transition:all 0.12s;flex-shrink:0;margin-right:8px;
+  transition:all 0.12s;flex-shrink:0;margin-left:8px;
 }
 .rt-field-toggle:hover{background:rgba(20,36,60,0.8);color:#a0d4f0;}
 .rt-toolbar{display:flex;gap:4px;}
@@ -547,7 +546,14 @@ body{
 }
 .cv-close:hover{color:#d0e0f0;background:rgba(70,130,180,0.1);}
 .cv-title{font-size:16px;font-weight:600;color:#d0e0f0;letter-spacing:1px;}
-.cv-body{flex:1;overflow-y:auto;padding:24px 10%;}
+.cv-body{flex:1;overflow-y:auto;padding:24px 10%;position:relative;}
+.cv-body.leaf-bg::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 650'%3E%3Cg opacity='0.12'%3E%3Cpath d='M250 40 C 150 60, 90 180, 100 320 C 108 420, 170 530, 250 600 C 330 530, 392 420, 400 320 C 410 180, 350 60, 250 40 Z' fill='%2366bb6a'/%3E%3C/g%3E%3Cg opacity='0.22'%3E%3Cpath d='M250 40 L 250 600' stroke='%232e7d32' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 90 Q 200 110, 160 155' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 90 Q 300 110, 340 155' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 150 Q 185 175, 135 230' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 150 Q 315 175, 365 230' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 220 Q 175 250, 120 315' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 220 Q 325 250, 380 315' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 300 Q 180 335, 130 410' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 300 Q 320 335, 370 410' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 390 Q 195 420, 160 490' stroke='%2343a047' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 390 Q 305 420, 340 490' stroke='%2343a047' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 480 Q 215 505, 195 555' stroke='%2343a047' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 480 Q 285 505, 305 555' stroke='%2343a047' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/g%3E%3Cg opacity='0.14'%3E%3Cpath d='M250 120 Q 225 135, 205 160' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 120 Q 275 135, 295 160' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 185 Q 215 205, 185 240' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 185 Q 285 205, 315 240' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 260 Q 210 285, 175 330' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 260 Q 290 285, 325 330' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 345 Q 212 375, 185 420' stroke='%2366bb6a' stroke-width='0.9' fill='none'/%3E%3Cpath d='M250 345 Q 288 375, 315 420' stroke='%2366bb6a' stroke-width='0.9' fill='none'/%3E%3Cpath d='M250 435 Q 225 455, 208 490' stroke='%2366bb6a' stroke-width='0.8' fill='none'/%3E%3Cpath d='M250 435 Q 275 455, 292 490' stroke='%2366bb6a' stroke-width='0.8' fill='none'/%3E%3Cpath d='M250 520 Q 232 535, 222 560' stroke='%2381c784' stroke-width='0.7' fill='none'/%3E%3Cpath d='M250 520 Q 268 535, 278 560' stroke='%2381c784' stroke-width='0.7' fill='none'/%3E%3Cpath d='M160 155 Q 145 175, 135 200' stroke='%2381c784' stroke-width='0.6' fill='none'/%3E%3Cpath d='M340 155 Q 355 175, 365 200' stroke='%2381c784' stroke-width='0.6' fill='none'/%3E%3Cpath d='M135 230 Q 122 255, 115 285' stroke='%2381c784' stroke-width='0.6' fill='none'/%3E%3Cpath d='M365 230 Q 378 255, 385 285' stroke='%2381c784' stroke-width='0.6' fill='none'/%3E%3Cpath d='M120 315 Q 110 345, 108 375' stroke='%23a5d6a7' stroke-width='0.5' fill='none'/%3E%3Cpath d='M380 315 Q 390 345, 392 375' stroke='%23a5d6a7' stroke-width='0.5' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:center center;background-size:480px auto;
+  opacity:0.8;
+}
+.cv-body.leaf-bg > *{position:relative;z-index:1;}
 .cv-editor{
   min-height:60vh;max-width:800px;margin:0 auto;
   color:#c8d8e8;font-size:15px;line-height:1.9;
@@ -813,25 +819,54 @@ body{
 @keyframes fruitGrow{0%{transform:scale(0) translateY(20px);opacity:0;}100%{transform:scale(1) translateY(0);opacity:1;}}
 .fruit-item:hover{transform:translateY(-4px);}
 .fruit-shape{
-  width:48px;height:56px;position:relative;
-  background:radial-gradient(ellipse at 35% 25%,#ffe680 0%,#f0c020 35%,#c89010 70%,#8b6914 100%);
-  border-radius:48% 48% 45% 45%/55% 55% 45% 45%;
-  box-shadow:0 4px 12px rgba(0,0,0,0.4),inset -4px -6px 10px rgba(80,50,10,0.3),inset 3px 4px 8px rgba(255,240,150,0.2);
-  transition:all 0.2s;
+  width:52px;height:52px;position:relative;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,rgba(255,240,180,0.95) 0%,rgba(255,215,100,0.85) 25%,rgba(240,185,50,0.75) 50%,rgba(200,145,20,0.6) 75%,rgba(160,110,10,0.4) 100%);
+  box-shadow:
+    0 0 8px rgba(255,210,80,0.5),
+    0 0 20px rgba(255,190,50,0.35),
+    0 0 36px rgba(255,170,30,0.2),
+    inset -3px -5px 12px rgba(120,70,5,0.25),
+    inset 3px 4px 10px rgba(255,245,200,0.4);
+  transition:all 0.25s;
+  animation:fruitPulse 3s ease-in-out infinite;
+}
+@keyframes fruitPulse{
+  0%,100%{box-shadow:0 0 8px rgba(255,210,80,0.5),0 0 20px rgba(255,190,50,0.35),0 0 36px rgba(255,170,30,0.2),inset -3px -5px 12px rgba(120,70,5,0.25),inset 3px 4px 10px rgba(255,245,200,0.4);}
+  50%{box-shadow:0 0 12px rgba(255,220,100,0.65),0 0 28px rgba(255,200,70,0.45),0 0 48px rgba(255,180,40,0.28),inset -3px -5px 12px rgba(120,70,5,0.25),inset 3px 4px 10px rgba(255,245,200,0.45);}
 }
 .fruit-shape::before{
-  content:"";position:absolute;top:-6px;left:50%;
-  width:3px;height:8px;margin-left:-1.5px;
-  background:#5a3a10;border-radius:2px;
+  content:"";position:absolute;top:50%;left:50%;
+  width:68px;height:68px;margin-left:-34px;margin-top:-34px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,200,60,0.12) 0%,rgba(255,180,40,0.06) 40%,transparent 70%);
+  pointer-events:none;
+  animation:fruitHalo 4s ease-in-out infinite;
+}
+@keyframes fruitHalo{
+  0%,100%{transform:scale(1);opacity:0.8;}
+  50%{transform:scale(1.15);opacity:1;}
 }
 .fruit-shape::after{
-  content:"";position:absolute;top:-4px;left:55%;
-  width:12px;height:8px;
-  background:radial-gradient(ellipse,#5a8a30 0%,#3a6020 60%,transparent 100%);
-  border-radius:50%;transform:rotate(30deg);
+  content:"";position:absolute;top:50%;left:50%;
+  width:90px;height:90px;margin-left:-45px;margin-top:-45px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,190,50,0.07) 0%,transparent 60%);
+  pointer-events:none;
+  animation:fruitHalo2 5s ease-in-out infinite;
+}
+@keyframes fruitHalo2{
+  0%,100%{transform:scale(1);opacity:0.6;}
+  50%{transform:scale(1.2);opacity:0.9;}
 }
 .fruit-item:hover .fruit-shape{
-  box-shadow:0 6px 18px rgba(255,200,50,0.3),0 4px 12px rgba(0,0,0,0.4),inset -4px -6px 10px rgba(80,50,10,0.3),inset 3px 4px 8px rgba(255,240,150,0.2);
+  box-shadow:
+    0 0 14px rgba(255,220,100,0.7),
+    0 0 32px rgba(255,200,60,0.5),
+    0 0 56px rgba(255,180,40,0.32),
+    inset -3px -5px 12px rgba(120,70,5,0.25),
+    inset 3px 4px 10px rgba(255,245,200,0.5);
+  transform:scale(1.08);
 }
 .fruit-label{
   font-size:11px;color:rgba(230,200,100,0.7);
@@ -866,9 +901,10 @@ body{
   flex-shrink:0;
 }
 .fruit-detail-header .fruit-icon{
-  width:28px;height:32px;flex-shrink:0;
-  background:radial-gradient(ellipse at 35% 25%,#ffe680 0%,#f0c020 35%,#c89010 70%,#8b6914 100%);
-  border-radius:48% 48% 45% 45%/55% 55% 45% 45%;
+  width:32px;height:32px;flex-shrink:0;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,rgba(255,240,180,0.95) 0%,rgba(255,215,100,0.85) 25%,rgba(240,185,50,0.75) 50%,rgba(200,145,20,0.6) 75%,rgba(160,110,10,0.4) 100%);
+  box-shadow:0 0 10px rgba(255,200,60,0.5),0 0 20px rgba(255,180,40,0.3);
 }
 .fruit-detail-title{flex:1;font-size:16px;font-weight:600;color:#e8c44d;}
 .fruit-detail-body{
@@ -876,8 +912,8 @@ body{
   position:relative;
 }
 .fruit-detail-body.leaf-bg{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 500'%3E%3Cg opacity='0.06'%3E%3Cpath d='M200 60 C 120 80, 80 180, 100 300 C 110 380, 160 440, 200 450 C 240 440, 290 380, 300 300 C 320 180, 280 80, 200 60 Z' fill='%234caf50'/%3E%3Cpath d='M200 60 L 200 450' stroke='%234caf50' stroke-width='2' fill='none'/%3E%3Cpath d='M200 120 Q 160 140, 130 180' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 120 Q 240 140, 270 180' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 180 Q 150 200, 120 250' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 180 Q 250 200, 280 250' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 250 Q 160 270, 135 320' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 250 Q 240 270, 265 320' stroke='%234caf50' stroke-width='1.5' fill='none'/%3E%3Cpath d='M200 330 Q 170 345, 155 380' stroke='%234caf50' stroke-width='1.2' fill='none'/%3E%3Cpath d='M200 330 Q 230 345, 245 380' stroke='%234caf50' stroke-width='1.2' fill='none'/%3E%3C/g%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:center 40%;background-size:280px auto;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 650'%3E%3Cg opacity='0.1'%3E%3Cpath d='M250 40 C 150 60, 90 180, 100 320 C 108 420, 170 530, 250 600 C 330 530, 392 420, 400 320 C 410 180, 350 60, 250 40 Z' fill='%2366bb6a'/%3E%3C/g%3E%3Cg opacity='0.18'%3E%3Cpath d='M250 40 L 250 600' stroke='%232e7d32' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 90 Q 200 110, 160 155' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 90 Q 300 110, 340 155' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 150 Q 185 175, 135 230' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 150 Q 315 175, 365 230' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 220 Q 175 250, 120 315' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 220 Q 325 250, 380 315' stroke='%23388e3c' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 300 Q 180 335, 130 410' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 300 Q 320 335, 370 410' stroke='%23388e3c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 390 Q 195 420, 160 490' stroke='%2343a047' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 390 Q 305 420, 340 490' stroke='%2343a047' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 480 Q 215 505, 195 555' stroke='%2343a047' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3Cpath d='M250 480 Q 285 505, 305 555' stroke='%2343a047' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/g%3E%3Cg opacity='0.12'%3E%3Cpath d='M250 120 Q 225 135, 205 160' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 120 Q 275 135, 295 160' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 185 Q 215 205, 185 240' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 185 Q 285 205, 315 240' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 260 Q 210 285, 175 330' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 260 Q 290 285, 325 330' stroke='%234caf50' stroke-width='1' fill='none'/%3E%3Cpath d='M250 345 Q 212 375, 185 420' stroke='%2366bb6a' stroke-width='0.9' fill='none'/%3E%3Cpath d='M250 345 Q 288 375, 315 420' stroke='%2366bb6a' stroke-width='0.9' fill='none'/%3E%3Cpath d='M250 435 Q 225 455, 208 490' stroke='%2366bb6a' stroke-width='0.8' fill='none'/%3E%3Cpath d='M250 435 Q 275 455, 292 490' stroke='%2366bb6a' stroke-width='0.8' fill='none'/%3E%3Cpath d='M250 520 Q 232 535, 222 560' stroke='%2381c784' stroke-width='0.7' fill='none'/%3E%3Cpath d='M250 520 Q 268 535, 278 560' stroke='%2381c784' stroke-width='0.7' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:center 30%;background-size:380px auto;
 }
 .fruit-detail-close{
   background:none;border:none;color:rgba(220,190,100,0.5);
@@ -1028,7 +1064,7 @@ body{
       <button id="btn-reset-view">重置视图</button>
     </div>
     <div id="assoc-hint">关联模式：点击起点叶子，再点击终点叶子</div>
-    <div class="hint">双击空白新建支干 · 双击支干展开/收缩 · 双击叶子标记重点 · 单击选中 · 拖拽节点 · 滚轮缩放 · 空白拖拽平移 · 右键删除</div>
+    <div class="hint">双击空白新建支干 · 双击支干展开/收缩 · 中键叶子标记重点 · 单击选中 · 拖拽节点 · 滚轮缩放 · 空白拖拽平移 · 右键删除</div>
     <div class="zoom-indicator" id="zoom-indicator">100%</div>
     <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -1108,7 +1144,7 @@ body{
     <button class="cv-close" id="cv-close" title="关闭 (ESC)">×</button>
     <div class="cv-title" id="cv-title">内容详情</div>
   </div>
-  <div class="cv-body">
+  <div class="cv-body" id="cv-body">
     <div class="cv-editor" id="cv-editor" contenteditable="true"></div>
   </div>
 </div>
@@ -1182,6 +1218,7 @@ var btnResetView=document.getElementById("btn-reset-view");
 var btnMobileMode=document.getElementById("btn-mobile-mode");
 var appEl=document.getElementById("app");
 var contentViewer=document.getElementById("content-viewer");
+var cvBody=document.getElementById("cv-body");
 var cvEditor=document.getElementById("cv-editor");
 var cvTitle=document.getElementById("cv-title");
 var cvCloseBtn=document.getElementById("cv-close");
@@ -2676,6 +2713,9 @@ function renderRichTextEditor(node){
       var isCollapsed=fieldCollapsed[fieldKey]||false;
       var header=document.createElement("div");
       header.className="rt-field-header";
+      var label=document.createElement("div");
+      label.className="rt-field-label";label.textContent=f.label;
+      header.appendChild(label);
       var toggleBtn=document.createElement("button");
       toggleBtn.className="rt-field-toggle";
       toggleBtn.textContent=isCollapsed?"+":"−";
@@ -2686,9 +2726,6 @@ function renderRichTextEditor(node){
         updateDetailPanel();
       });
       header.appendChild(toggleBtn);
-      var label=document.createElement("div");
-      label.className="rt-field-label";label.textContent=f.label;
-      header.appendChild(label);
 
       if(!previewMode&&!isCollapsed){
         var toolbar=document.createElement("div");
@@ -2851,6 +2888,9 @@ function renderRichTextEditor(node){
   var srcCollapsed=fieldCollapsed[node.id+"_source"]||false;
   var srcHeader=document.createElement("div");
   srcHeader.className="rt-field-header";
+  var srcLabel=document.createElement("div");
+  srcLabel.className="rt-field-label";srcLabel.textContent="来源";
+  srcHeader.appendChild(srcLabel);
   var srcToggle=document.createElement("button");
   srcToggle.className="rt-field-toggle";
   srcToggle.textContent=srcCollapsed?"+":"−";
@@ -2860,9 +2900,6 @@ function renderRichTextEditor(node){
     updateDetailPanel();
   });
   srcHeader.appendChild(srcToggle);
-  var srcLabel=document.createElement("div");
-  srcLabel.className="rt-field-label";srcLabel.textContent="来源";
-  srcHeader.appendChild(srcLabel);
   srcSection.appendChild(srcHeader);
 
   if(!previewMode&&!srcCollapsed){
@@ -3182,6 +3219,9 @@ function renderMindmapEditor(node){
     }
 
     /* Draw lines first */
+    var linesGroup=document.createElementNS(SVG_NS,"g");
+    linesGroup.setAttribute("id","mm-lines");
+    vg.appendChild(linesGroup);
     function drawLines(nodeData){
       var pos=positions[nodeData.id];
       var children=nodeData.children||[];
@@ -3201,7 +3241,7 @@ function renderMindmapEditor(node){
         line.setAttribute("stroke",colors[Math.min(children[i]._level||1,3)]);
         line.setAttribute("stroke-width","1");
         line.setAttribute("opacity","0.3");
-        vg.appendChild(line);
+        linesGroup.appendChild(line);
         drawLines(children[i]);
       }
     }
@@ -3318,10 +3358,8 @@ function renderMindmapEditor(node){
     }
 
     function redrawLines(){
-      var lines=vg.querySelectorAll("path");
-      for(var li=0;li<lines.length;li++)vg.removeChild(lines[li]);
-      var lineGroup=document.createElementNS(SVG_NS,"g");
-      vg.insertBefore(lineGroup,vg.firstChild);
+      /* Clear all lines */
+      while(linesGroup.firstChild)linesGroup.removeChild(linesGroup.firstChild);
       function drawL(nodeData){
         var pos2=positions[nodeData.id];
         var ch=nodeData.children||[];
@@ -3338,7 +3376,7 @@ function renderMindmapEditor(node){
           var lc=["#4dd0e1","#80deea","#b2ebf2","#d4f1f4"];
           ln.setAttribute("stroke",lc[Math.min(ch[j]._level||1,3)]);
           ln.setAttribute("stroke-width","1");ln.setAttribute("opacity","0.3");
-          lineGroup.appendChild(ln);
+          linesGroup.appendChild(ln);
           drawL(ch[j]);
         }
       }
@@ -4213,6 +4251,12 @@ function openContentViewer(node,field){
   cvEditingNode=node;
   cvTitle.textContent=(node.title||"")+" - 内容详情";
   cvEditor.innerHTML=node.leafData[field.key]||"";
+  /* Leaf vein background only in full-screen viewer for leaves */
+  if(node.type==="leaf"){
+    cvBody.classList.add("leaf-bg");
+  }else{
+    cvBody.classList.remove("leaf-bg");
+  }
   contentViewer.style.display="flex";
   /* Handle paste in full-screen viewer */
   cvEditor.onpaste=function(ev){
@@ -4269,6 +4313,7 @@ function closeContentViewer(){
     }
   }
   contentViewer.style.display="none";
+  cvBody.classList.remove("leaf-bg");
   cvEditingNode=null;
   cvEditor.onpaste=null;
   cvEditor.oninput=null;
@@ -4428,8 +4473,22 @@ function navigateToNode(nodeId){
 
 /* ---------- Event Handlers ---------- */
 function handlePointerDown(e){
-  if(e.button!==undefined&&e.button!==0)return;
   var pos=getMousePos(e);
+  /* Middle click - toggle leaf mark */
+  if(e.button===1){
+    e.preventDefault();
+    var g=findNodeGroup(e.target);
+    if(g){
+      var mid=g.getAttribute("data-id");
+      var mnode=getNode(mid);if(!mnode)return;
+      if(mnode.type==="leaf"){
+        mnode.marked=!mnode.marked;
+        saveState();state.assocVersion++;
+      }
+    }
+    return;
+  }
+  if(e.button!==undefined&&e.button!==0)return;
   var g=findNodeGroup(e.target);
   if(g){
     var id=g.getAttribute("data-id");
@@ -4608,8 +4667,8 @@ svg.addEventListener("touchend",function(e){
           node.collapsed=!node.collapsed;
           saveState();growthAnim=1;simAlpha=1;
         }else if(node.type==="leaf"){
-          node.marked=!node.marked;
-          saveState();state.assocVersion++;
+          var newTitle=prompt("编辑叶子标题:",node.title);
+          if(newTitle!==null&&newTitle.trim()){node.title=newTitle.trim();saveState();updateDetailPanel();}
         }
         selectNode(id);
       }else{
@@ -4628,19 +4687,19 @@ svg.addEventListener("touchend",function(e){
 svg.addEventListener("dblclick",function(e){
   var g=findNodeGroup(e.target);
   if(g){
+    if(clickTimer){clearTimeout(clickTimer);clickTimer=null;}
     var id=g.getAttribute("data-id");
     var node=getNode(id);if(!node)return;
     if(node.type==="branch"||node.type==="trunk"){
       node.collapsed=!node.collapsed;
       saveState();growthAnim=1;simAlpha=1;
     }else if(node.type==="leaf"){
-      node.marked=!node.marked;
-      saveState();state.assocVersion++;
+      var newTitle=prompt("编辑叶子标题:",node.title);
+      if(newTitle!==null&&newTitle.trim()){node.title=newTitle.trim();saveState();updateDetailPanel();}
     }
     selectNode(id);
   }else{
-    var rect=svg.getBoundingClientRect();
-    var pos={x:e.clientX-rect.left,y:e.clientY-rect.top};
+    var pos=getMousePos(e);
     var world=screenToWorld(pos.x,pos.y);
     var trunk=getTrunk();if(!trunk)return;
     var newNode=createNode("branch",trunk.id,world.x,world.y,"新支干");
@@ -4658,25 +4717,6 @@ svg.addEventListener("wheel",function(e){
   viewport.x=sx-world.x*newScale;viewport.y=sy-world.y*newScale;viewport.scale=newScale;
   updateViewport();
 },{passive:false});
-
-svg.addEventListener("dblclick",function(e){
-  var g=findNodeGroup(e.target);
-  if(g){
-    e.stopPropagation();
-    if(clickTimer){clearTimeout(clickTimer);clickTimer=null;}
-    var id=g.getAttribute("data-id");
-    var node=getNode(id);if(!node)return;
-    var newTitle=prompt("编辑标题:",node.title);
-    if(newTitle!==null&&newTitle.trim()){node.title=newTitle.trim();saveState();updateDetailPanel();}
-    selectNode(id);
-  }else{
-    var pos=getMousePos(e);
-    var world=screenToWorld(pos.x,pos.y);
-    var trunk=getTrunk();if(!trunk)return;
-    var newNode=createNode("branch",trunk.id,world.x,world.y,"新支干");
-    selectNode(newNode.id);updateDetailPanel();
-  }
-});
 
 svg.addEventListener("contextmenu",function(e){
   var g=findNodeGroup(e.target);if(!g)return;
